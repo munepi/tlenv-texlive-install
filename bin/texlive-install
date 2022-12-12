@@ -167,7 +167,7 @@ num_cpu_cores() {
 }
 
 install_texlive() {
-    local texlive_version=$1
+    local texlive_install_version=$1
     local texlive_install_tlnet=$2
     local texlive_install_tl_unx_tarball=$3   ##<= install-tl-unx.tar.gz#<sha256 or sha512>
     local texlive_install_tl_unx
@@ -193,32 +193,44 @@ install_texlive() {
             return 1
         fi
 
-        printf "%s\n" \
-               "TEXDIR          ${PREFIX_PATH}"              \
-               "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
-               "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
-               "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
-               "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
-               "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
-               "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
-               "selected_scheme scheme-basic" \
-               "binary_${texlive_arch}  1" \
-               "option_adjustrepo       0" \
-               "option_autobackup       0" \
-               "option_doc              0" \
-               "option_src              0" \
-               > ./install-tl-unx/texlive.profile && \
-            ./install-tl-unx/install-tl \
-                -profile ./install-tl-unx/texlive.profile \
-                -repository ${texlive_install_tlnet} \
-                ${install_tl_opts} $@
+        if [ -f ${PREFIX_PATH}/bin/${texlive_arch}/tlmgr ]; then
+            echo "Skipped TeX Live installation"
+        else
+            printf "%s\n" \
+                   "TEXDIR          ${PREFIX_PATH}"              \
+                   "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
+                   "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
+                   "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
+                   "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
+                   "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
+                   "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
+                   "selected_scheme scheme-basic" \
+                   "binary_${texlive_arch}  1" \
+                   "option_adjustrepo       0" \
+                   "option_autobackup       0" \
+                   "option_doc              0" \
+                   "option_src              0" \
+                   > ./install-tl-unx/texlive.profile && \
+                ./install-tl-unx/install-tl \
+                    -profile ./install-tl-unx/texlive.profile \
+                    -repository ${texlive_install_tlnet} \
+                    ${install_tl_opts} $@
+        fi
         popd >&4
 
-    { echo "Installed ${texlive_version} to ${PREFIX_PATH}"
+    { echo "Installed ${texlive_install_version} to ${PREFIX_PATH}"
       echo
     } >&2
 }
 
+install_texlive_package() {
+    local arch=$(find "${PREFIX_PATH}/bin/"* -maxdepth 1 -type d|sed "s,.*/,,")
+
+    "${PREFIX_PATH}/bin/"${arch}/tlmgr install $@
+    { echo "Installed $(echo $@|sed "s,--file,,g") to ${PREFIX_PATH}"
+      echo
+    } >&2
+}
 
 install_package() {
   install_package_using "tarball" 1 "$@"
