@@ -216,6 +216,50 @@ install_texlive() {
                     -repository ${texlive_install_tlnet} \
                     ${install_tl_opts} $@
         fi
+
+        ## post setup texmf.cnf
+        if [ "$(uname -s)" = "Darwin" ]; then
+        cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
+
+% OSFONTDIR is to provide a convenient hook for allowing TeX to find
+% fonts installed on the system (outside of TeX).  An empty default
+% value would add "//" to the search paths, so we give it a dummy value.
+%default: OSFONTDIR = /please/set/osfontdir/in/the/environment
+OSFONTDIR = /System/Library/Fonts//;/Library/Fonts//;/System/Library/AssetsV2/com_apple_MobileAsset_Font{6,7}//;/System/Library/Assets/com_apple_MobileAsset_Font{3,4,5}//;~/Library/Fonts//
+__CNF__
+        fi
+        cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
+
+% This variable is specific to Unix, to fall back to case-insensitive
+% search in non-system directories if there is no exact match. It is
+% enabled by default in texmf.cnf, but not enabled by default at
+% compile-time.
+%
+%default: texmf_casefold_search = 1
+texmf_casefold_search = 0
+
+% Words of font info for TeX (total size of all TFM files, approximately).
+% Must be >= 20000 and <= 147483647 (without tex.ch changes).
+%default: font_mem_size = 8000000
+font_mem_size = 16000000
+
+% Total number of fonts. Must be >= 50 and <= 9000 (without tex.ch changes).
+%default: font_max = 9000
+font_max = 18000
+
+% BibTeX only (max_strings also determines hash_size and hash_prime).
+%default: ent_str_size =  250
+ent_str_size=2000
+
+% It's probably inadvisable to change these. At any rate, we must have:
+% 45 < error_line      < 255;
+% 30 < half_error_line < error_line - 15;
+% 60 <= max_print_line;
+% These apply to TeX, Metafont, and MetaPost.
+error_line=254
+half_error_line=238
+max_print_line=1048576
+__CNF__
         popd >&4
 
     { echo "Installed ${texlive_install_version} to ${PREFIX_PATH}"
