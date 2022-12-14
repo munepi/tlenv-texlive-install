@@ -1,0 +1,1 @@
+install_texlive "2010" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2010/tlnet-final/" "install-tl-unx.tar.gz#eeb123b22d004db60de470eb0bbd5e1202c0c414c8fc87945942e4939fbc16dc"
