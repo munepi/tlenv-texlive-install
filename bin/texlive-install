@@ -195,27 +195,28 @@ install_texlive() {
 
         if [ -f ${PREFIX_PATH}/bin/${texlive_arch}/tlmgr ]; then
             echo "Skipped TeX Live installation"
-        else
-            printf "%s\n" \
-                   "TEXDIR          ${PREFIX_PATH}"              \
-                   "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
-                   "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
-                   "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
-                   "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
-                   "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
-                   "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
-                   "selected_scheme scheme-basic" \
-                   "binary_${texlive_arch}  1" \
-                   "option_adjustrepo       0" \
-                   "option_autobackup       0" \
-                   "option_doc              0" \
-                   "option_src              0" \
-                   > ./install-tl-unx/texlive.profile && \
-                ./install-tl-unx/install-tl \
-                    -profile ./install-tl-unx/texlive.profile \
-                    -repository ${texlive_install_tlnet} \
-                    ${install_tl_opts} $@
+            return 0
         fi
+
+        printf "%s\n" \
+               "TEXDIR          ${PREFIX_PATH}"              \
+               "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
+               "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
+               "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
+               "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
+               "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
+               "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
+               "selected_scheme scheme-basic" \
+               "binary_${texlive_arch}  1" \
+               "option_adjustrepo       0" \
+               "option_autobackup       0" \
+               "option_doc              0" \
+               "option_src              0" \
+               > ./install-tl-unx/texlive.profile && \
+            ./install-tl-unx/install-tl \
+                -profile ./install-tl-unx/texlive.profile \
+                -repository ${texlive_install_tlnet} \
+                ${install_tl_opts} $@
 
         ## post setup texmf.cnf
         if [ "$(uname -s)" = "Darwin" ]; then
