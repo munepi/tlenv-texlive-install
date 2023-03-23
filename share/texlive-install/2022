@@ -1,0 +1,1 @@
+install_texlive "2022" "https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2022/tlnet-final/" "install-tl-unx.tar.gz#bdb892254042857012a981c560b672fc2268dd3109cb85a20c04203e71379fd397c36a2bb666910d9ce1425bb17453dba06714f702deed044c9761afffdc83cf"
