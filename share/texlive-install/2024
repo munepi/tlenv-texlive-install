@@ -1,1 +1,1 @@
-current
+install_texlive "2024" "https://mirror.ctan.org/systems/texlive/tlnet/" "install-tl-unx.tar.gz"
