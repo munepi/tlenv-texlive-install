@@ -1,0 +1,28 @@
+install_texlive "current" "https://mirror.ctan.org/systems/texlive/tlnet/" "install-tl-unx.tar.gz"
+
+TL_ADDPKGS=(
+    ## collections: munepi/tllangjapanese
+    collection-binextra
+    collection-langjapanese
+    collection-latexextra
+    collection-luatex
+    collection-fontsrecommended
+    ## TL12+
+    algorithms algorithmicx
+    bbold bbold-type1
+    ebgaramond
+    fontawesome
+    inconsolata
+    mnsymbol
+    physics
+    sourcecodepro sourcesanspro
+    systeme
+    ulem
+    ## TL14+
+    roboto
+    ## TL18+
+    stix2-otf stix2-type1
+    ## TL19+
+    noto-emoji
+)
+install_texlive_package ${TL_ADDPKGS[@]}
