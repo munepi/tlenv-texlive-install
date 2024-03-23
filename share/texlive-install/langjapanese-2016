@@ -1,0 +1,28 @@
+install_texlive "2016" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2016/tlnet-final/" "install-tl-unx.tar.gz#f03cf62c0bd3a3c0b655939b20e549b9a7f334bae16531ecfea0a0e836058f134448294e8b16c68db2810caa8f006f55f964e8de2323d4c7d29842d7d3992d2a"
+
+TL_ADDPKGS=(
+    ## collections: munepi/tllangjapanese
+    collection-binextra
+    collection-langjapanese
+    collection-latexextra
+    collection-luatex
+    collection-fontsrecommended
+    ## TL12+
+    algorithms algorithmicx
+    bbold bbold-type1
+    ebgaramond
+    fontawesome
+    inconsolata
+    mnsymbol
+    physics
+    sourcecodepro sourcesanspro
+    systeme
+    ulem
+    ## TL14+
+    roboto
+    ## TL18+
+    # stix2-otf stix2-type1
+    ## TL19+
+    # noto-emoji
+)
+install_texlive_package ${TL_ADDPKGS[@]}

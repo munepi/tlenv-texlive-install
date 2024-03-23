@@ -1,0 +1,28 @@
+install_texlive "2023" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2023/tlnet-final/" "install-tl-unx.tar.gz#0db7a3be8a71c7d1adc1436e35b602d176687731dbb4762e98b5ee0b4da9731efa27a2bec04832f2ba39e5f65ca4f798a68f5aaefaa3ada85be68c68aaa3bc31"
+
+TL_ADDPKGS=(
+    ## collections: munepi/tllangjapanese
+    collection-binextra
+    collection-langjapanese
+    collection-latexextra
+    collection-luatex
+    collection-fontsrecommended
+    ## TL12+
+    algorithms algorithmicx
+    bbold bbold-type1
+    ebgaramond
+    fontawesome
+    inconsolata
+    mnsymbol
+    physics
+    sourcecodepro sourcesanspro
+    systeme
+    ulem
+    ## TL14+
+    roboto
+    ## TL18+
+    stix2-otf stix2-type1
+    ## TL19+
+    noto-emoji
+)
+install_texlive_package ${TL_ADDPKGS[@]}
