@@ -1,1 +1,1 @@
-install_texlive "2024" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2024/tlnet-final/" "install-tl-unx.tar.gz#0db7a3be8a71c7d1adc1436e35b602d176687731dbb4762e98b5ee0b4da9731efa27a2bec04832f2ba39e5f65ca4f798a68f5aaefaa3ada85be68c68aaa3bc31"
+install_texlive "2024" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2024/tlnet-final/" "install-tl-unx.tar.gz#c067ec5e5665c21e6d5c5d24f72bafde0dbec2c1b280ef8127cc92f316e42c23a30358e96cf12f251abcb8413edb1d1183bf4b74de6b4a34f6d862a6f3689194"
