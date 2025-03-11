@@ -1,4 +1,4 @@
-install_texlive "2024" "https://mirror.ctan.org/systems/texlive/tlnet/" "install-tl-unx.tar.gz"
+install_texlive "2024" "http://mirror.ctan.org/systems/texlive/tlnet/" "install-tl-unx.tar.gz"
 
 TL_ADDPKGS=(
     ## collections: munepi/tllangjapanese

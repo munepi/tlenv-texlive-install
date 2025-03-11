@@ -1,4 +1,4 @@
-install_texlive "2024" "https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2024/tlnet-final/" "install-tl-unx.tar.gz#c067ec5e5665c21e6d5c5d24f72bafde0dbec2c1b280ef8127cc92f316e42c23a30358e96cf12f251abcb8413edb1d1183bf4b74de6b4a34f6d862a6f3689194"
+install_texlive "2024" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2024/tlnet-final/" "install-tl-unx.tar.gz#c067ec5e5665c21e6d5c5d24f72bafde0dbec2c1b280ef8127cc92f316e42c23a30358e96cf12f251abcb8413edb1d1183bf4b74de6b4a34f6d862a6f3689194"
 
 TL_ADDPKGS=(
     ## collections: munepi/tllangjapanese

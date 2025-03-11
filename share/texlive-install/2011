@@ -1,1 +1,1 @@
-install_texlive "2011" "https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2011/tlnet-final/" "install-tl-unx.tar.gz#7f3827bf492f4bec28d290c5a643e8ad0bb4bbba85624fb8a685b22ee6f335a8"
+install_texlive "2011" "http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2011/tlnet-final/" "install-tl-unx.tar.gz#7f3827bf492f4bec28d290c5a643e8ad0bb4bbba85624fb8a685b22ee6f335a8"
