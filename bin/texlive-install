@@ -218,6 +218,9 @@ install_texlive() {
                 -repository ${texlive_install_tlnet} \
                 ${install_tl_opts} $@
 
+        ## remove the symbolic link bin/${texlive_arch}/man
+        rm -f ${PREFIX_PATH}/bin/${texlive_arch}/man
+
         ## post setup texmf.cnf
         if [ "$(uname -s)" = "Darwin" ]; then
         cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
