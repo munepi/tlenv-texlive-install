@@ -222,6 +222,7 @@ install_texlive() {
         rm -f ${PREFIX_PATH}/bin/${texlive_arch}/man
 
         ## post setup texmf.cnf
+        cp -a ${PREFIX_PATH}/texmf.cnf ${PREFIX_PATH}/texmf.cnf.distro
         if [ "$(uname -s)" = "Darwin" ]; then
         cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
 
