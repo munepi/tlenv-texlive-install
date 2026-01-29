@@ -16,10 +16,14 @@ TL_ADDPKGS=(
     mnsymbol
     physics
     sourcecodepro sourcesanspro
+    stmaryrd
     systeme
     ulem
     ## TL14+
     roboto
+    ## TL17+
+    # nicematrix
+    # plex
     ## TL18+
     # stix2-otf stix2-type1
     ## TL19+
