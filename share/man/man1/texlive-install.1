@@ -1,0 +1,331 @@
+'\" t
+.\"     Title: texlive-install
+.\"    Author: Munehiro Yamamoto
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-08-08
+.\"    Manual: texlive-install Manual
+.\"    Source: texlive-install 20260716
+.\"  Language: English
+.\"
+.TH "TEXLIVE\-INSTALL" "1" "2026-08-08" "texlive\-install 20260716" "texlive\-install Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+texlive-install \- Download and install a version of TeX Live
+.SH "SYNOPSIS"
+.sp
+texlive\-install [\-dvk] \fI<definition>\fP \fI<prefix>\fP [\-\- \fI<install\-tl\-args>\fP.\|.\|.]
+.br
+texlive\-install {\-\-list|\-\-definitions}
+.br
+texlive\-install \-\-resolve \fI<version>\fP
+.br
+texlive\-install \-\-version
+.SH "DESCRIPTION"
+.sp
+texlive\-install downloads the TeX Live installer \f(CRinstall\-tl\fP from the tlnet
+repository named by the \fIdefinition\fP argument and runs it to install TeX Live
+into the location specified by \fIprefix\fP.
+.sp
+The \fIdefinition\fP argument can be a path to a file on disk, in which case
+it is sourced into texlive\-install as a bash script.
+.sp
+Optionally, extra \fIinstall\-tl\-args\fP may be listed after "\-\-" and will get
+forwarded to the \f(CRinstall\-tl\fP invocation.
+.sp
+By default, all installation output is redirected to a log file at
+\f(CR$TMPDIR/texlive\-install.*.log\fP. Activate the verbose mode to skip the log file
+and print everything to standard streams.
+.SH "TEX LIVE VERSIONS"
+.sp
+When listing "latest" TeX Live versions, such as in \f(CR\-\-list\fP output,
+texlive\-install only knows of TeX Live versions that are bundled with this
+project. That means that when a new TeX Live version comes out,
+texlive\-install will not know about it immediately; you will have to upgrade
+texlive\-install before you can use it to install the new TeX Live version.
+.SH "TEX LIVE DEFINITIONS"
+.sp
+texlive\-install ships with definitions for the following TeX Live versions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+"YYYY", denoted by a four\-digit year such as "2026": the TeX Live release of
+that year. Past releases are installed from a frozen "tlnet\-final" historic
+archive, the current release from the CTAN tlnet repository.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+"current": the current TeX Live release, installed from the CTAN tlnet
+repository.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+"pretest": the upcoming TeX Live release, installed from a tlpretest
+repository.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+"langjapanese\-YYYY", "langjapanese\-current": same as above, with
+\fBcollection\-langjapanese\fP and other packages for Japanese typesetting
+installed on top of the basic scheme.
+.RE
+.sp
+The \fIdefinition\fP argument may also be a prefix of a definition name, in which
+case the latest stable definition that matches will be installed. For example,
+"langjapanese" resolves to the latest "langjapanese\-YYYY" definition.
+.SH "DEFINITION FILES"
+.sp
+A definition file is a bash script that is sourced by texlive\-install. It
+typically consists of a single \fBinstall_texlive\fP call, optionally followed by
+\fBinstall_texlive_package\fP calls:
+.sp
+\fBinstall_texlive\fP \fI<version>\fP \fI<tlnet>\fP \fI<tarball>\fP [\fI<install\-tl\-args>\fP.\|.\|.]
+.RS 4
+Fetch \fItarball\fP (usually "install\-tl\-unx.tar.gz", optionally followed by
+"#<checksum>") from the \fItlnet\fP repository and install TeX Live from that
+repository. \fIversion\fP is only used in progress messages.
+.RE
+.sp
+\fBinstall_texlive_package\fP \fI<package>\fP.\|.\|.
+.RS 4
+Install additional packages into the TeX Live installation using \fBtlmgr\fP.
+.RE
+.SH "OPTIONS"
+.sp
+\fB\-l, \-\-list\fP
+.RS 4
+List latest stable releases for each TeX Live
+.RE
+.sp
+\fB\-\-definitions\fP
+.RS 4
+List all local definitions, including outdated ones
+.RE
+.sp
+\fB\-\-resolve\fP
+.RS 4
+Print the definition name of the latest stable TeX Live version matching the \fIversion\fP argument
+.RE
+.sp
+\fB\-\-version\fP
+.RS 4
+Show version of texlive\-install
+.RE
+.sp
+\fB\-d, \-\-dir\fP
+.RS 4
+Install the TeX Live in the \fIprefix/definition\fP destination instead of directly in \fIprefix\fP
+.RE
+.sp
+\fB\-v, \-\-verbose\fP
+.RS 4
+Verbose mode: forward all install output to stdout/stderr
+.RE
+.sp
+\fB\-k, \-\-keep\fP
+.RS 4
+Do not remove source tree after installation
+.RE
+.sp
+\fB\-4, \-\-ipv4\fP
+.RS 4
+Resolve names to IPv4 addresses only
+.RE
+.sp
+\fB\-6, \-\-ipv6\fP
+.RS 4
+Resolve names to IPv6 addresses only
+.RE
+.SH "EXAMPLES"
+.sp
+Install a TeX Live version while passing some options to the installer:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ texlive\-install 2026 /path/to/destination \-\- \-no\-verify\-downloads
+.fam
+.fi
+.if n .RE
+.sp
+Install a TeX Live version to \f(CR~/.tlenv/versions/2026\fP:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ texlive\-install \-\-dir 2026 ~/.tlenv/versions
+.fam
+.fi
+.if n .RE
+.sp
+Install the latest TeX Live version for Japanese typesetting to
+\f(CR~/.tlenv/versions/langjapanese\-YYYY\fP:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ texlive\-install \-\-dir langjapanese ~/.tlenv/versions
+.fam
+.fi
+.if n .RE
+.sp
+Usage as tlenv plugin, accomplishes the same as the second example:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$ tlenv install 2026
+.fam
+.fi
+.if n .RE
+.SH "ENVIRONMENT VARIABLES"
+.sp
+\fBTMPDIR\fP
+.RS 4
+The location to write temporary files on disk
+.RE
+.sp
+\fBTEXLIVE_INSTALL_BUILD_PATH\fP (default: a timestamped subdirectory of \fITMPDIR\fP)
+.RS 4
+The location for downloading and unpacking the TeX Live installer
+.RE
+.sp
+\fBTEXLIVE_INSTALL_CACHE_PATH\fP (default: "~/.tlenv/cache" if invoked as tlenv plugin)
+.RS 4
+Where to cache downloaded package files
+.RE
+.sp
+\fBTEXLIVE_INSTALL_TLNET\fP
+.RS 4
+The tlnet repository to install TeX Live from, overriding the one named in the definition
+.RE
+.sp
+\fBTEXLIVE_INSTALL_PLATFORM\fP
+.RS 4
+The TeX Live platform to install, forwarded to "install\-tl \-force\-platform", instead of auto\-detecting the current platform
+.RE
+.sp
+\fBTEXLIVE_INSTALL_HTTP_CLIENT\fP (default: first tool found in PATH)
+.RS 4
+One of "aria2c", "curl", or "wget" to use for downloading
+.RE
+.sp
+\fBTEXLIVE_INSTALL_ARIA2_OPTS\fP
+.RS 4
+Additional options to pass to aria2c for downloading
+.RE
+.sp
+\fBTEXLIVE_INSTALL_CURL_OPTS\fP
+.RS 4
+Additional options to pass to curl for downloading
+.RE
+.sp
+\fBTEXLIVE_INSTALL_WGET_OPTS\fP
+.RS 4
+Additional options to pass to wget for downloading
+.RE
+.sp
+\fBTEXLIVE_INSTALL_MIRROR_URL\fP
+.RS 4
+Custom mirror URL root to download the TeX Live installer from
+.RE
+.sp
+\fBTEXLIVE_INSTALL_MIRROR_PACKAGE_URL\fP
+.RS 4
+Custom complete mirror URL
+.RE
+.sp
+\fBTEXLIVE_INSTALL_SKIP_MIRROR\fP
+.RS 4
+Bypass the download mirror and fetch all package files from their original URLs
+.RE
+.sp
+\fBTEXLIVE_INSTALL_ROOT\fP (default: "share/texlive\-install" within texlive\-install install location)
+.RS 4
+Custom build definition directory
+.RE
+.sp
+\fBTEXLIVE_INSTALL_DEFINITIONS\fP
+.RS 4
+Paths to search for build definitions in addition to \fITEXLIVE_INSTALL_ROOT\fP
+.RE
+.sp
+\fBNO_COLOR\fP (default: allow colors when connected to terminal)
+.RS 4
+Disable ANSI colors in output
+.RE
+.sp
+\fBCLICOLOR_FORCE\fP
+.RS 4
+Use ANSI colors in output even when not connected to a terminal
+.RE
+.SH "NOTES"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+.URL "https://github.com/munepi/tlenv\-texlive\-install#readme" "" ""
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+.URL "https://github.com/munepi/tlenv#readme" "" ""
+.RE
+.SH "AUTHOR"
+.sp
+Munehiro Yamamoto
