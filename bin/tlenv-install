@@ -2,8 +2,8 @@
 #
 # Summary: Install a TeX Live version using texlive-install
 #
-# Usage: tlenv install [-f|-s] [-kpv] <version> [-- <install-tl-args...>]
-#        tlenv install [-f|-s] [-kpv] <definition-file>
+# Usage: tlenv install [-f|-s] [-kv] <version> [-- <install-tl-args...>]
+#        tlenv install [-f|-s] [-kv] <definition-file>
 #        tlenv install --list
 #        tlenv install --version
 #
@@ -15,7 +15,6 @@
 #   texlive-install options:
 #
 #   -v, --verbose   Verbose mode: forward all install output to stdout/stderr
-#   -p, --patch     Apply a patch from stdin before building
 #   -k, --keep      Keep source tree in TLENV_BUILD_ROOT after installation
 #                   (defaults to "TLENV_ROOT/sources")
 #   --version       Show version of texlive-install
@@ -43,7 +42,6 @@ if [ "$1" = "--complete" ]; then
   echo --force
   echo --skip-existing
   echo --keep
-  echo --patch
   echo --verbose
   echo --version
   exec texlive-install --definitions
@@ -87,7 +85,6 @@ unset FORCE
 unset SKIP_EXISTING
 unset KEEP
 unset VERBOSE
-unset HAS_PATCH
 
 parse_options "$@"
 for option in "${OPTIONS[@]}"; do
@@ -119,9 +116,6 @@ for option in "${OPTIONS[@]}"; do
     ;;
   "v" | "verbose" )
     VERBOSE="-v"
-    ;;
-  "p" | "patch" )
-    HAS_PATCH="-p"
     ;;
   "version" )
     exec texlive-install --version
@@ -229,7 +223,7 @@ cleanup() {
 
 trap cleanup SIGINT
 
-build_args=(${KEEP:+--keep} ${VERBOSE:+--verbose} ${HAS_PATCH:+--patch} "$DEFINITION" "$PREFIX")
+build_args=(${KEEP:+--keep} ${VERBOSE:+--verbose} "$DEFINITION" "$PREFIX")
 [ ${#EXTRA_ARGUMENTS[@]} -eq 0 ] || build_args+=(-- "${EXTRA_ARGUMENTS[@]}")
 
 # Invoke `texlive-install` and record the exit status in $STATUS.

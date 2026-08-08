@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: texlive-install [-dvpk] <definition> <prefix> [-- <install-tl-args...>]
+# Usage: texlive-install [-dvk] <definition> <prefix> [-- <install-tl-args...>]
 #        texlive-install {--list|--definitions}
 #        texlive-install --resolve <version>
 #        texlive-install --version
@@ -12,7 +12,6 @@
 #
 #   -d, --dir       Install the TeX Live in <prefix>/<definition> instead of <prefix>
 #   -v, --verbose   Verbose mode: forward all install output to stdout/stderr
-#   -p, --patch     Apply a patch from stdin before building
 #   -k, --keep      Do not remove source tree after installation
 #   -4, --ipv4      Resolve names to IPv4 addresses only
 #   -6, --ipv6      Resolve names to IPv6 addresses only
@@ -720,7 +719,6 @@ sort_versions() {
 
 unset VERBOSE
 unset KEEP_BUILD_PATH
-unset HAS_PATCH
 unset IPV4
 unset IPV6
 unset EARLY_EXIT
@@ -761,9 +759,6 @@ for option in "${OPTIONS[@]}"; do
     ;;
   "v" | "verbose" )
     VERBOSE=true
-    ;;
-  "p" | "patch" )
-    HAS_PATCH=true
     ;;
   "4" | "ipv4")
     IPV4=true
