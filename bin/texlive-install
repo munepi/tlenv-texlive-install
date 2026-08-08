@@ -663,13 +663,14 @@ list_definitions() {
   } | sort_versions | uniq
 }
 
-# list only latest stable versions excluding RC, preview, dev and EoL'ed
+# list only latest stable versions excluding pretest, RC, preview, dev and EoL'ed
 list_maintained_versions() {
   { for DEFINITION_DIR in "${TEXLIVE_INSTALL_DEFINITIONS[@]}"; do
       [ -d "$DEFINITION_DIR" ] && \
         grep -L -e warn_eol "$DEFINITION_DIR"/* 2>/dev/null | \
         sed 's|.*/||' | \
-        grep -v -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$'
+        grep -v -e '^pretest$' -e '-pretest$' \
+                -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$'
     done
   } | extract_latest_versions | sort_versions | uniq
 }
@@ -692,7 +693,8 @@ resolve_version() {
 
   version=$(list_definitions | \
     grep -e "^${grep_pattern}[-.]" | \
-    grep -v -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$' | \
+    grep -v -e '^pretest$' -e '-pretest$' \
+            -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$' | \
     tail -n 1)
 
   [ -n "$version" ] || return 1
@@ -700,12 +702,14 @@ resolve_version() {
 }
 
 extract_latest_versions() {
-  # sort in this function looks redundunt but it is necessary
-  # rbx-3.99 appears latest unless the sort
-  sed 'h; s/[-]/./g; s/.p\([[:digit:]]\)/.z.\1/; s/$/.z/; G; s/\n/ /' | \
-    LC_ALL=C sort -t. -k 1,1 -k 2,2n -k 3,3n -k 4,4n -k 5,5n | \
-    sed 's/[.]/ /; s/[0-9].*z //; s/^\([0-9].[0-9]\)/mri\1 \1/' | \
-    awk '{ latest[$1] =$2 } END{ for(key in latest) { print latest[key] } }'
+  # Group definitions into series by removing the digits from their names
+  # ("2026" => "", "langjapanese-2026" => "langjapanese-", "current" =>
+  # "current") and print only the latest definition of each series. The input
+  # has to be sorted first so that the last definition seen of a series is
+  # also its latest one.
+  sort_versions | awk '
+    { series = $0; gsub(/[0-9]+/, "", series); latest[series] = $0 }
+    END { for (series in latest) { print latest[series] } }'
 }
 
 sort_versions() {
