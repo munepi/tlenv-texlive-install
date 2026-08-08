@@ -2,27 +2,26 @@
 #
 # Summary: Install a TeX Live version using texlive-install
 #
-# Usage: tlenv install [-f|-s] [-kpv] <version>
-#        tlenv install [-f|-s] [-kpv] <definition-file>
-#        tlenv install -l|--list
+# Usage: tlenv install [-f|-s] [-kv] <version> [-- <install-tl-args...>]
+#        tlenv install [-f|-s] [-kv] <definition-file>
+#        tlenv install --list
 #        tlenv install --version
 #
-#   -l/--list          List latest stable versions for each TeX Live
-#   -L/--list-all      List all local versions
-#   -f/--force         Install even if the version appears to be installed already
-#   -s/--skip-existing Skip if the version appears to be installed already
+#   -l, --list           List latest stable versions for each TeX Live
+#   -L, --list-all       List all local versions, including outdated ones
+#   -f, --force          Allow overwriting an existing installed version
+#   -s, --skip-existing  Avoid overwriting an existing installed version
 #
 #   texlive-install options:
 #
-#   -k/--keep          Keep source tree in $TLENV_BUILD_ROOT after installation
-#                      (defaults to $TLENV_ROOT/sources)
-#   -p/--patch         Apply a patch from stdin before building
-#   -v/--verbose       Verbose mode: print compilation status to stdout
-#   --version          Show version of texlive-install
+#   -v, --verbose   Verbose mode: forward all install output to stdout/stderr
+#   -k, --keep      Keep source tree in TLENV_BUILD_ROOT after installation
+#                   (defaults to "TLENV_ROOT/sources")
+#   --version       Show version of texlive-install
 #
-# For detailed information on installing TeX Live versions with
-# texlive-install, including a list of environment variables for adjusting
-# compilation, see: https://github.com/munepi/tlenv#usage
+# For detailed information on installing TeX Live versions with texlive-install,
+# including a list of environment variables for adjusting installation,
+# see: https://github.com/munepi/tlenv#usage
 #
 set -e
 [ -n "$TLENV_DEBUG" ] && set -x
@@ -43,7 +42,6 @@ if [ "$1" = "--complete" ]; then
   echo --force
   echo --skip-existing
   echo --keep
-  echo --patch
   echo --verbose
   echo --version
   exec texlive-install --definitions
@@ -66,7 +64,7 @@ suggest_selecting_global() {
   # shellcheck disable=SC2155
   local version_file="$(tlenv-version-file)"
   [[ "$version_file" != "$TLENV_ROOT"/version || -e "$version_file" ]] && return 0
-  echo
+  echo 
   colorize 1 "NOTE:"
   echo -n " to activate this TeX Live version as the new default, run: "
   colorize 33 "tlenv global $VERSION_NAME"
@@ -87,7 +85,6 @@ unset FORCE
 unset SKIP_EXISTING
 unset KEEP
 unset VERBOSE
-unset HAS_PATCH
 
 parse_options "$@"
 for option in "${OPTIONS[@]}"; do
@@ -100,7 +97,7 @@ for option in "${OPTIONS[@]}"; do
     [ ! -t 1 ] || {
       echo
       echo "Only latest stable releases for each TeX Live implementation are shown."
-      echo "Use 'tlenv install --list-all / -L' to show all local versions."
+      echo "Use \`tlenv install --list-all' to show all local versions."
     } 1>&2
     exit
     ;;
@@ -120,9 +117,6 @@ for option in "${OPTIONS[@]}"; do
   "v" | "verbose" )
     VERBOSE="-v"
     ;;
-  "p" | "patch" )
-    HAS_PATCH="-p"
-    ;;
   "version" )
     exec texlive-install --version
     ;;
@@ -134,8 +128,6 @@ done
 
 [ "${#ARGUMENTS[@]}" -le 1 ] || usage 1 >&2
 
-unset VERSION_NAME
-
 # The first argument contains the definition to install. If the
 # argument is missing, try to install whatever local app-specific
 # version is specified by tlenv. Show usage instructions if a local
@@ -144,24 +136,31 @@ DEFINITION="${ARGUMENTS[0]}"
 [ -n "$DEFINITION" ] || DEFINITION="$(tlenv-local 2>/dev/null || true)"
 [ -n "$DEFINITION" ] || usage 1 >&2
 
+if VERSION_NAME="$(texlive-install --resolve "$DEFINITION")"; then
+  DEFINITION="$VERSION_NAME"
+else
+  unset VERSION_NAME
+fi
+
 # Define `before_install` and `after_install` functions that allow
 # plugin hooks to register a string of code for execution before or
 # after the installation process.
 declare -a before_hooks after_hooks
 
+# shellcheck disable=SC2317
 before_install() {
   local hook="$1"
   before_hooks["${#before_hooks[@]}"]="$hook"
 }
 
+# shellcheck disable=SC2317
 after_install() {
   local hook="$1"
   after_hooks["${#after_hooks[@]}"]="$hook"
 }
 
-OLDIFS="$IFS"
-IFS=$'\n' scripts=(`tlenv-hooks install`)
-IFS="$OLDIFS"
+IFS=$'\n' read -d '' -r -a scripts <<<"$(tlenv-hooks install)" || true
+# shellcheck disable=SC1090
 for script in "${scripts[@]}"; do source "$script"; done
 
 
@@ -177,7 +176,11 @@ PREFIX="${TLENV_ROOT}/versions/${VERSION_NAME}"
 if [ -d "${PREFIX}/bin" ]; then
   if [ -z "$FORCE" ] && [ -z "$SKIP_EXISTING" ]; then
     echo "tlenv: $PREFIX already exists" >&2
-    read -p "continue with installation? (y/N) "
+    if [ ! -t 0 ]; then
+      echo "tlenv: must use \`--force' or \`--skip-existing' in non-interactive mode" >&2
+      exit 1
+    fi
+    read -rp "continue with installation? (y/N) "
 
     case "$REPLY" in
     y* | Y* ) ;;
@@ -203,8 +206,7 @@ if [ -z "${TEXLIVE_INSTALL_CACHE_PATH}" ] && [ -d "${TLENV_ROOT}/cache" ]; then
   export TEXLIVE_INSTALL_CACHE_PATH="${TLENV_ROOT}/cache"
 fi
 
-# Default TLENV_VERSION to the globally-specified TeX Live version. (The
-# REE installer requires an existing TeX Live installation to run. An
+# Default TLENV_VERSION to the globally-specified TeX Live version. (An
 # unsatisfied local .texlive-version file can cause the installer to
 # fail.)
 # shellcheck disable=SC2155
@@ -221,9 +223,12 @@ cleanup() {
 
 trap cleanup SIGINT
 
+build_args=(${KEEP:+--keep} ${VERBOSE:+--verbose} "$DEFINITION" "$PREFIX")
+[ ${#EXTRA_ARGUMENTS[@]} -eq 0 ] || build_args+=(-- "${EXTRA_ARGUMENTS[@]}")
+
 # Invoke `texlive-install` and record the exit status in $STATUS.
 STATUS=0
-texlive-install $KEEP $VERBOSE $HAS_PATCH "$DEFINITION" "$PREFIX" || STATUS="$?"
+texlive-install "${build_args[@]}" || STATUS="$?"
 
 # Display a more helpful message if the definition wasn't found.
 if [ "$STATUS" == "2" ]; then
@@ -235,15 +240,17 @@ if [ "$STATUS" == "2" ]; then
       echo "$candidates" | indent
     fi
     echo
-    echo "See all available versions with \`tlenv install --list'."
+    echo "See all available versions with \`tlenv install --list-all'."
     echo
     echo -n "If the version you need is missing, try upgrading texlive-install"
-    if [ "$here" != "${here#$(brew --prefix 2>/dev/null)}" ]; then
+    if [ "$here" != "${here#"$(brew --prefix 2>/dev/null)"}" ]; then
       printf ":\n\n"
-      echo "  brew update && brew upgrade texlive-install"
+      echo "  brew upgrade texlive-install"
     elif [ -d "${here}/.git" ]; then
+      display_here="$here"
+      [[ -z "${HOME%/}" || $here != "${HOME}/"* ]] || display_here="~${here#"$HOME"}"
       printf ":\n\n"
-      echo "  git -C ${here} pull"
+      echo "  git -C $display_here pull"
     else
       printf ".\n"
     fi

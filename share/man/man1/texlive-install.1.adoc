@@ -1,0 +1,185 @@
+= texlive-install(1)
+Munehiro Yamamoto
+:doctype: manpage
+:man manual: texlive-install Manual
+:man source: texlive-install {version}
+:man-linkstyle: pass:[blue R < >]
+
+== Name
+
+texlive-install - Download and install a version of TeX Live
+
+== Synopsis
+
+texlive-install [-dvk] _<definition>_ _<prefix>_ [-- _<install-tl-args>_...] +
+texlive-install {--list|--definitions} +
+texlive-install --resolve _<version>_ +
+texlive-install --version
+
+== Description
+
+texlive-install downloads the TeX Live installer `install-tl` from the tlnet
+repository named by the _definition_ argument and runs it to install TeX Live
+into the location specified by _prefix_.
+
+The _definition_ argument can be a path to a file on disk, in which case
+it is sourced into texlive-install as a bash script.
+
+Optionally, extra _install-tl-args_ may be listed after "--" and will get
+forwarded to the `install-tl` invocation.
+
+By default, all installation output is redirected to a log file at
+`$TMPDIR/texlive-install.*.log`. Activate the verbose mode to skip the log file
+and print everything to standard streams.
+
+== TeX Live versions
+
+When listing "latest" TeX Live versions, such as in `--list` output,
+texlive-install only knows of TeX Live versions that are bundled with this
+project. That means that when a new TeX Live version comes out,
+texlive-install will not know about it immediately; you will have to upgrade
+texlive-install before you can use it to install the new TeX Live version.
+
+== TeX Live definitions
+
+texlive-install ships with definitions for the following TeX Live versions:
+
+- "YYYY", denoted by a four-digit year such as "2026": the TeX Live release of
+  that year. Past releases are installed from a frozen "tlnet-final" historic
+  archive, the current release from the CTAN tlnet repository.
+
+- "current": the current TeX Live release, installed from the CTAN tlnet
+  repository.
+
+- "pretest": the upcoming TeX Live release, installed from a tlpretest
+  repository.
+
+- "langjapanese-YYYY", "langjapanese-current": same as above, with
+  *collection-langjapanese* and other packages for Japanese typesetting
+  installed on top of the basic scheme.
+
+The _definition_ argument may also be a prefix of a definition name, in which
+case the latest stable definition that matches will be installed. For example,
+"langjapanese" resolves to the latest "langjapanese-YYYY" definition.
+
+== Definition files
+
+A definition file is a bash script that is sourced by texlive-install. It
+typically consists of a single *install_texlive* call, optionally followed by
+*install_texlive_package* calls:
+
+*install_texlive* _<version>_ _<tlnet>_ _<tarball>_ [_<install-tl-args>_...]::
+  Fetch _tarball_ (usually "install-tl-unx.tar.gz", optionally followed by
+  "#<checksum>") from the _tlnet_ repository and install TeX Live from that
+  repository. _version_ is only used in progress messages.
+
+*install_texlive_package* _<package>_...::
+  Install additional packages into the TeX Live installation using *tlmgr*.
+
+== Options
+
+*-l, --list*::
+  List latest stable releases for each TeX Live
+
+*--definitions*::
+  List all local definitions, including outdated ones
+
+*--resolve*::
+  Print the definition name of the latest stable TeX Live version matching the _version_ argument
+
+*--version*::
+  Show version of texlive-install
+
+*-d, --dir*::
+  Install the TeX Live in the _prefix/definition_ destination instead of directly in _prefix_
+
+*-v, --verbose*::
+  Verbose mode: forward all install output to stdout/stderr
+
+*-k, --keep*::
+  Do not remove source tree after installation
+
+*-4, --ipv4*::
+  Resolve names to IPv4 addresses only
+
+*-6, --ipv6*::
+  Resolve names to IPv6 addresses only
+
+== Examples
+
+Install a TeX Live version while passing some options to the installer:
+----
+$ texlive-install 2026 /path/to/destination -- -no-verify-downloads
+----
+
+Install a TeX Live version to `~/.tlenv/versions/2026`:
+----
+$ texlive-install --dir 2026 ~/.tlenv/versions
+----
+
+Install the latest TeX Live version for Japanese typesetting to
+`~/.tlenv/versions/langjapanese-YYYY`:
+----
+$ texlive-install --dir langjapanese ~/.tlenv/versions
+----
+
+Usage as tlenv plugin, accomplishes the same as the second example:
+----
+$ tlenv install 2026
+----
+
+== Environment Variables
+
+*TMPDIR*::
+  The location to write temporary files on disk
+
+*TEXLIVE_INSTALL_BUILD_PATH* (default: a timestamped subdirectory of _TMPDIR_)::
+  The location for downloading and unpacking the TeX Live installer
+
+*TEXLIVE_INSTALL_CACHE_PATH* (default: "~/.tlenv/cache" if invoked as tlenv plugin)::
+  Where to cache downloaded package files
+
+*TEXLIVE_INSTALL_TLNET*::
+  The tlnet repository to install TeX Live from, overriding the one named in the definition
+
+*TEXLIVE_INSTALL_PLATFORM*::
+  The TeX Live platform to install, forwarded to "install-tl -force-platform", instead of auto-detecting the current platform
+
+*TEXLIVE_INSTALL_HTTP_CLIENT* (default: first tool found in PATH)::
+  One of "aria2c", "curl", or "wget" to use for downloading
+
+*TEXLIVE_INSTALL_ARIA2_OPTS*::
+  Additional options to pass to aria2c for downloading
+
+*TEXLIVE_INSTALL_CURL_OPTS*::
+  Additional options to pass to curl for downloading
+
+*TEXLIVE_INSTALL_WGET_OPTS*::
+  Additional options to pass to wget for downloading
+
+*TEXLIVE_INSTALL_MIRROR_URL*::
+  Custom mirror URL root to download the TeX Live installer from
+
+*TEXLIVE_INSTALL_MIRROR_PACKAGE_URL*::
+  Custom complete mirror URL
+
+*TEXLIVE_INSTALL_SKIP_MIRROR*::
+  Bypass the download mirror and fetch all package files from their original URLs
+
+*TEXLIVE_INSTALL_ROOT* (default: "share/texlive-install" within texlive-install install location)::
+  Custom build definition directory
+
+*TEXLIVE_INSTALL_DEFINITIONS*::
+  Paths to search for build definitions in addition to _TEXLIVE_INSTALL_ROOT_
+
+*NO_COLOR* (default: allow colors when connected to terminal)::
+  Disable ANSI colors in output
+
+*CLICOLOR_FORCE*::
+  Use ANSI colors in output even when not connected to a terminal
+
+== Notes
+
+* https://github.com/munepi/tlenv-texlive-install#readme
+
+* https://github.com/munepi/tlenv#readme

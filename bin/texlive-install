@@ -1,35 +1,50 @@
 #!/usr/bin/env bash
 #
-# Usage: texlive-install [-kpv] <definition> <prefix>
-#        texlive-install --definitions
+# Usage: texlive-install [-dvk] <definition> <prefix> [-- <install-tl-args...>]
+#        texlive-install {--list|--definitions}
+#        texlive-install --resolve <version>
 #        texlive-install --version
 #
-#   -k/--keep        Do not remove source tree after installation
-#   -p/--patch       Apply a patch from stdin before building
-#   -v/--verbose     Verbose mode: print compilation status to stdout
-#   -4/--ipv4        Resolve names to IPv4 addresses only
-#   -6/--ipv6        Resolve names to IPv6 addresses only
-#   --definitions    List all local definitions
-#   -l/--list        List latest stable releases for each TeX Live
-#   --version        Show version of texlive-install
+#   -l, --list      List latest stable releases for each TeX Live
+#   --definitions   List all local definitions, including outdated ones
+#   --resolve       Print the latest stable definition name matching a version prefix
+#   --version       Show version of texlive-install
+#
+#   -d, --dir       Install the TeX Live in <prefix>/<definition> instead of <prefix>
+#   -v, --verbose   Verbose mode: forward all install output to stdout/stderr
+#   -k, --keep      Do not remove source tree after installation
+#   -4, --ipv4      Resolve names to IPv4 addresses only
+#   -6, --ipv6      Resolve names to IPv6 addresses only
 #
 
-TEXLIVE_INSTALL_VERSION="20221206"
+TEXLIVE_INSTALL_VERSION="20260716"
 
 OLDIFS="$IFS"
 
+# Have shell functions inherit the ERR trap.
 set -E
-exec 3<&2 # preserve original stderr at fd 3
 
+# Some functions need to be able to write to the original process stderr
+# stream, since fd 2 would often have been redirected elsewhere. To enable
+# this, texlive-install initializes two additional file descriptors:
+#
+#  3: the original stderr
+#  4: the log file
+exec 3<&2
 
 lib() {
   parse_options() {
     OPTIONS=()
     ARGUMENTS=()
+    EXTRA_ARGUMENTS=()
     local arg option index
 
-    for arg in "$@"; do
-      if [ "${arg:0:1}" = "-" ]; then
+    while [ $# -gt 0 ]; do
+      arg="$1"
+      if [ "$arg" == "--" ]; then
+        shift 1
+        break
+      elif [ "${arg:0:1}" = "-" ]; then
         if [ "${arg:1:1}" = "-" ]; then
           OPTIONS[${#OPTIONS[*]}]="${arg:2}"
         else
@@ -37,18 +52,22 @@ lib() {
           while option="${arg:$index:1}"; do
             [ -n "$option" ] || break
             OPTIONS[${#OPTIONS[*]}]="$option"
-            index=$(($index+1))
+            index=$((index+1))
           done
         fi
+        shift 1
       else
         ARGUMENTS[${#ARGUMENTS[*]}]="$arg"
+        shift 1
       fi
     done
+
+    EXTRA_ARGUMENTS=("$@")
   }
 
-  if [ "$1" == "--$FUNCNAME" ]; then
-    declare -f "$FUNCNAME"
-    echo "$FUNCNAME \"\$1\";"
+  if [ "$1" == "--${FUNCNAME[0]}" ]; then
+    declare -f "${FUNCNAME[0]}"
+    echo "${FUNCNAME[0]} \"\$1\";"
     exit
   fi
 }
@@ -60,21 +79,23 @@ resolve_link() {
 }
 
 abs_dirname() {
-  local cwd="$(pwd)"
   local path="$1"
+  local cwd
+  cwd="$(pwd || true)"
 
   while [ -n "$path" ]; do
-    cd "${path%/*}"
+    cd "${path%/*}" || return 1
     local name="${path##*/}"
     path="$(resolve_link "$name" || true)"
   done
 
   pwd
-  cd "$cwd"
+  cd "$cwd" || return 1
 }
 
 capitalize() {
-  printf "%s" "$1" | tr a-z A-Z
+  # shellcheck disable=SC2018,SC2019
+  printf "%s" "$1" | tr 'a-z' 'A-Z'
 }
 
 sanitize() {
@@ -82,9 +103,82 @@ sanitize() {
 }
 
 colorize() {
-  if [ -t 1 ]; then printf "\e[%sm%s\e[m" "$1" "$2"
-  else echo -n "$2"
+  if [[ -n $CLICOLOR_FORCE || ( -z $NO_COLOR && -t 1 ) ]]; then
+    printf "\e[%sm%s\e[m" "$1" "$2"
+  else
+    printf "%s" "$2"
   fi
+}
+
+print_command() {
+  local arg
+  for arg; do
+    [ "${#TMPDIR}" -le 1 ] || arg="${arg//$TMP\//\$TMPDIR/}"
+    [ "${#HOME}" -le 1 ] || arg="${arg//$HOME\//\$HOME/}"
+    case "$arg" in
+    *\'* | *\$* )
+      printf ' "%s"' "$arg" ;;
+    *' '* )
+      printf " '%s'" "$arg" ;;
+    * )
+      printf ' %s' "$arg" ;;
+    esac
+  done
+  printf '\n'
+}
+
+# Log the full invocation of an external command.
+log_command() {
+  local msg
+  msg="->$(print_command "$@")"
+
+  colorize 36 "$msg"
+  echo
+  [ -n "$VERBOSE" ] || printf "%s\n" "$msg" >&4
+
+  local status=0
+  "$@" || status="$?"
+  if [ "$status" -ne 0 ]; then
+    echo "external command failed with status $status" >&4
+  fi
+  return "$status"
+}
+
+# Log the full invocation of an external command and capture its output.
+capture_command() {
+  local msg
+  msg="->$(print_command "$@")"
+
+  colorize 36 "$msg"
+  echo
+
+  # In verbose mode, connect the subcommand to original stdout & stderr.
+  local cmd_stdout=1
+  local cmd_stderr=3
+  if [ -z "$VERBOSE" ]; then
+    printf "%s\n" "$msg" >&4
+    # In normal mode, redirect all subcommand output to LOG_PATH.
+    cmd_stdout=4
+    cmd_stderr=4
+  fi
+
+  local status=0
+  # shellcheck disable=SC2261
+  "$@" 2>&$cmd_stderr >&$cmd_stdout || status="$?"
+  if [ "$status" -ne 0 ]; then
+    echo "external command failed with status $status" >&4
+  fi
+  return "$status"
+}
+
+log_info() {
+  colorize 1 "==> $*"
+  echo
+  [ -n "$VERBOSE" ] || echo "==> $*" >&4
+}
+
+log_notice() {
+  echo "texlive-install: $*"
 }
 
 os_information() {
@@ -93,59 +187,48 @@ os_information() {
   elif type -p sw_vers >/dev/null; then
     echo "$(sw_vers -productName) $(sw_vers -productVersion)"
   elif [ -r /etc/os-release ]; then
+    # shellcheck disable=SC1091
     source /etc/os-release
-    echo "$NAME" $VERSION_ID
+    # shellcheck disable=SC2153
+    echo "$NAME $VERSION_ID"
   else
-    local os="$(cat /etc/{centos,redhat,fedora,system}-release /etc/debian_version 2>/dev/null | head -1)"
+    local os
+    os="$(cat /etc/{centos,redhat,fedora,system}-release /etc/debian_version 2>/dev/null | head -1)"
     echo "${os:-$(uname -sr)}"
   fi
 }
 
 is_mac() {
   [ "$(uname -s)" = "Darwin" ] || return 1
-  [ $# -eq 0 ] || [ "$(osx_version)" "$@" ]
+  [ $# -eq 0 ] || [ "$(osx_version)" -ge "$1" ]
 }
 
 #  9.1  -> 901
 # 10.9  -> 1009
 # 10.10 -> 1010
 osx_version() {
-  local -a ver
-  IFS=. ver=( `sw_vers -productVersion` )
+  local ver
+  IFS=. read -d "" -r -a ver <<<"$(sw_vers -productVersion)" || true
   IFS="$OLDIFS"
-  echo $(( ${ver[0]}*100 + ${ver[1]} ))
+  echo $(( ver[0]*100 + ver[1] ))
 }
 
 build_failed() {
   { echo
-    colorize 1 "BUILD FAILED"
-    echo " ($(os_information) using $(version))"
+    colorize '31;1' "BUILD FAILED"
+    echo " ($(os_information) on $(uname -m) using $(version))"
     echo
 
     if ! rmdir "${BUILD_PATH}" 2>/dev/null; then
-      echo "Inspect or clean up the working tree at ${BUILD_PATH}"
+      echo "You can inspect the build directory at ${BUILD_PATH}"
 
-      if file_is_not_empty "$LOG_PATH"; then
-        colorize 33 "Results logged to ${LOG_PATH}"
-        printf "\n\n"
-        echo "Last 10 log lines:"
-        tail -n 10 "$LOG_PATH"
+      if [ -n "$(head -1 "$LOG_PATH" 2>/dev/null)" ]; then
+        colorize 33 "See the full build log at ${LOG_PATH}"
+        printf "\n"
       fi
     fi
   } >&3
   exit 1
-}
-
-file_is_not_empty() {
-  local filename="$1"
-  local line_count="$(wc -l "$filename" 2>/dev/null || true)"
-
-  if [ -n "$line_count" ]; then
-    words=( $line_count )
-    [ "${words[0]}" -gt 0 ]
-  else
-    return 1
-  fi
 }
 
 num_cpu_cores() {
@@ -167,64 +250,75 @@ num_cpu_cores() {
 }
 
 install_texlive() {
-    local texlive_install_version=$1
-    local texlive_install_tlnet=$2
-    local texlive_install_tl_unx_tarball=$3   ##<= install-tl-unx.tar.gz#<sha256 or sha512>
-    local texlive_install_tl_unx
-    local texlive_arch install_tl_opts
-    shift 3
+  local texlive_install_version="$1"
+  local texlive_install_tlnet="$2"
+  local texlive_install_tl_unx_tarball="$3"   ##<= install-tl-unx.tar.gz#<sha256 or sha512>
+  local texlive_install_tl_unx
+  local texlive_arch
+  local -a install_tl_opts
+  shift 3
 
-    pushd "$BUILD_PATH" >&4
-        if [ "${TEXLIVE_INSTALL_TLNET}" ]; then
-            texlive_install_tlnet=${TEXLIVE_INSTALL_TLNET}
-        fi
-        texlive_install_tl_unx=${texlive_install_tlnet}${texlive_install_tl_unx_tarball}
-        fetch_tarball install-tl-unx ${texlive_install_tl_unx}
+  # shellcheck disable=SC2164
+  pushd "$BUILD_PATH" >/dev/null
+  echo "cd $PWD" >&4
 
-        if [ "${TEXLIVE_INSTALL_PLATFORM}" ]; then
-            texlive_arch=${TEXLIVE_INSTALL_PLATFORM}
-            install_tl_opts="-force-platform ${TEXLIVE_INSTALL_PLATFORM}"
-        else
-            texlive_arch=$(install-tl-unx/install-tl -print-platform)
-        fi
-        if echo ${texlive_arch}|grep 'unknown'; then
-            echo "${texlive_arch}: not supported platform"
-            echo "Please set \$TEXLIVE_INSTALL_PLATFORM instead of auto-detecting the current platform."
-            return 1
-        fi
+  if [ -n "${TEXLIVE_INSTALL_TLNET}" ]; then
+    texlive_install_tlnet="${TEXLIVE_INSTALL_TLNET}"
+  fi
+  texlive_install_tl_unx="${texlive_install_tlnet}${texlive_install_tl_unx_tarball}"
+  fetch_tarball install-tl-unx "$texlive_install_tl_unx"
 
-        if [ -f ${PREFIX_PATH}/bin/${texlive_arch}/tlmgr ]; then
-            echo "Skipped TeX Live installation"
-            return 0
-        fi
+  if [ -n "${TEXLIVE_INSTALL_PLATFORM}" ]; then
+    texlive_arch="${TEXLIVE_INSTALL_PLATFORM}"
+    install_tl_opts=(-force-platform "${TEXLIVE_INSTALL_PLATFORM}")
+  else
+    texlive_arch="$(install-tl-unx/install-tl -print-platform)"
+  fi
+  if [[ $texlive_arch == *unknown* ]]; then
+    { echo
+      echo "${texlive_arch}: not a supported platform"
+      echo "Please set \$TEXLIVE_INSTALL_PLATFORM instead of auto-detecting the current platform."
+      echo
+    } >&2
+    return 1
+  fi
 
-        printf "%s\n" \
-               "TEXDIR          ${PREFIX_PATH}"              \
-               "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
-               "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
-               "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
-               "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
-               "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
-               "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
-               "selected_scheme scheme-basic" \
-               "binary_${texlive_arch}  1" \
-               "option_adjustrepo       0" \
-               "option_autobackup       0" \
-               "option_doc              0" \
-               "option_src              0" \
-               > ./install-tl-unx/texlive.profile && \
-            ./install-tl-unx/install-tl \
-                -profile ./install-tl-unx/texlive.profile \
-                -repository ${texlive_install_tlnet} \
-                ${install_tl_opts} $@
+  if [ -f "${PREFIX_PATH}/bin/${texlive_arch}/tlmgr" ]; then
+    # shellcheck disable=SC2164
+    popd >/dev/null
+    log_info "Skipped TeX Live installation"
+    return 0
+  fi
 
-        ## remove the symbolic link bin/${texlive_arch}/man
-        rm -f ${PREFIX_PATH}/bin/${texlive_arch}/man
+  printf "%s\n" \
+         "TEXDIR          ${PREFIX_PATH}"              \
+         "TEXMFLOCAL      ${PREFIX_PATH}/texmf-local"  \
+         "TEXMFSYSVAR     ${PREFIX_PATH}/texmf-var"    \
+         "TEXMFSYSCONFIG  ${PREFIX_PATH}/texmf-config" \
+         "TEXMFHOME       ${PREFIX_PATH}/texmf-local"  \
+         "TEXMFVAR        ${PREFIX_PATH}/texmf-var"    \
+         "TEXMFCONFIG     ${PREFIX_PATH}/texmf-config" \
+         "selected_scheme scheme-basic" \
+         "binary_${texlive_arch}  1" \
+         "option_adjustrepo       0" \
+         "option_autobackup       0" \
+         "option_doc              0" \
+         "option_src              0" \
+         > ./install-tl-unx/texlive.profile
 
-        ## post setup texmf.cnf
-        cp -a ${PREFIX_PATH}/texmf.cnf ${PREFIX_PATH}/texmf.cnf.distro
-        if [ "$(uname -s)" = "Darwin" ]; then
-        cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
+  log_info "Installing TeX Live ${texlive_install_version}..."
+  capture_command ./install-tl-unx/install-tl \
+                  -profile ./install-tl-unx/texlive.profile \
+                  -repository "${texlive_install_tlnet}" \
+                  "${install_tl_opts[@]}" "$@" "${TEXLIVE_INSTALL_OPTS_ARRAY[@]}"
+
+  ## remove the symbolic link bin/${texlive_arch}/man
+  rm -f "${PREFIX_PATH}/bin/${texlive_arch}/man"
+
+  ## post setup texmf.cnf
+  cp -a "${PREFIX_PATH}/texmf.cnf" "${PREFIX_PATH}/texmf.cnf.distro"
+  if is_mac; then
+  cat<<__CNF__ >>"${PREFIX_PATH}/texmf.cnf"
 
 % OSFONTDIR is to provide a convenient hook for allowing TeX to find
 % fonts installed on the system (outside of TeX).  An empty default
@@ -232,8 +326,8 @@ install_texlive() {
 %default: OSFONTDIR = /please/set/osfontdir/in/the/environment
 OSFONTDIR = /System/Library/Fonts//;/Library/Fonts//;/System/Library/AssetsV2/com_apple_MobileAsset_Font{6,7}//;/System/Library/Assets/com_apple_MobileAsset_Font{3,4,5}//;~/Library/Fonts//
 __CNF__
-        fi
-        cat<<__CNF__ >>${PREFIX_PATH}/texmf.cnf
+  fi
+  cat<<__CNF__ >>"${PREFIX_PATH}/texmf.cnf"
 
 % This variable is specific to Unix, to fall back to case-insensitive
 % search in non-system directories if there is no exact match. It is
@@ -265,61 +359,18 @@ error_line=254
 half_error_line=238
 max_print_line=1048576
 __CNF__
-        popd >&4
 
-    { echo "Installed ${texlive_install_version} to ${PREFIX_PATH}"
-      echo
-    } >&2
+  # shellcheck disable=SC2164
+  popd >/dev/null
+  log_info "Installed ${texlive_install_version} to ${PREFIX_PATH}"
 }
 
 install_texlive_package() {
-    local arch=$(find "${PREFIX_PATH}/bin/"* -maxdepth 1 -type d|sed "s,.*/,,")
+  local arch
+  arch="$(find "${PREFIX_PATH}/bin/"* -maxdepth 1 -type d | sed "s,.*/,,")"
 
-    "${PREFIX_PATH}/bin/"${arch}/tlmgr install $@
-    { echo "Installed $(echo $@|sed "s,--file,,g") to ${PREFIX_PATH}"
-      echo
-    } >&2
-}
-
-install_package() {
-  install_package_using "tarball" 1 "$@"
-}
-
-install_git() {
-  install_package_using "git" 2 "$@"
-}
-
-install_svn() {
-  install_package_using "svn" 2 "$@"
-}
-
-install_package_using() {
-  local package_type="$1"
-  local package_type_nargs="$2"
-  local package_name="$3"
-  shift 3
-
-  local fetch_args=( "$package_name" "${@:1:$package_type_nargs}" )
-  local make_args=( "$package_name" )
-  local arg last_arg
-
-  for arg in "${@:$(( $package_type_nargs + 1 ))}"; do
-    if [ "$last_arg" = "--if" ]; then
-      "$arg" || return 0
-    elif [ "$arg" != "--if" ]; then
-      make_args["${#make_args[@]}"]="$arg"
-    fi
-    last_arg="$arg"
-  done
-
-  pushd "$BUILD_PATH" >&4
-  "fetch_${package_type}" "${fetch_args[@]}"
-  make_package "${make_args[@]}"
-  popd >&4
-
-  { echo "Installed ${package_name} to ${PREFIX_PATH}"
-    echo
-  } >&2
+  capture_command "${PREFIX_PATH}/bin/${arch}/tlmgr" install "$@"
+  log_info "Installed $(echo "$@" | sed "s,--file,,g") to ${PREFIX_PATH}"
 }
 
 compute_sha2() {
@@ -328,8 +379,7 @@ compute_sha2() {
     output="$(shasum -a 256 -b)" || return 1
     echo "${output% *}"
   elif type openssl &>/dev/null; then
-    local openssl="$(command -v "$(brew --prefix openssl 2>/dev/null || true)"/bin/openssl openssl | head -1)"
-    output="$("$openssl" dgst -sha256 2>/dev/null)" || return 1
+    output="$(openssl dgst -sha256 2>/dev/null)" || return 1
     echo "${output##* }"
   elif type sha256sum &>/dev/null; then
     output="$(sha256sum -b)" || return 1
@@ -345,8 +395,7 @@ compute_sha5() {
     output="$(shasum -a 512 -b)" || return 1
     echo "${output% *}"
   elif type openssl &>/dev/null; then
-    local openssl="$(command -v "$(brew --prefix openssl 2>/dev/null || true)"/bin/openssl openssl | head -1)"
-    output="$("$openssl" dgst -sha512 2>/dev/null)" || return 1
+    output="$(openssl dgst -sha512 2>/dev/null)" || return 1
     echo "${output##* }"
   elif type sha512sum &>/dev/null; then
     output="$(sha512sum -b)" || return 1
@@ -376,7 +425,11 @@ has_checksum_support() {
   local has_checksum_var="HAS_CHECKSUM_SUPPORT_${checksum_command}"
 
   if [ -z "${!has_checksum_var+defined}" ]; then
-    printf -v "$has_checksum_var" "$(echo test | "$checksum_command" >/dev/null; echo $?)"
+    if "$checksum_command" <<<"test" >/dev/null; then
+      printf -v "$has_checksum_var" 0 # success
+    else
+      printf -v "$has_checksum_var" 1 # error
+    fi
   fi
   return "${!has_checksum_var}"
 }
@@ -384,7 +437,8 @@ has_checksum_support() {
 verify_checksum() {
   local checksum_command
   local filename="$1"
-  local expected_checksum="$(echo "$2" | tr [A-Z] [a-z])"
+  local expected_checksum
+  expected_checksum="$(tr 'A-F' 'a-f' <<<"$2")"
 
   # If the specified filename doesn't exist, return success
   [ -e "$filename" ] || return 0
@@ -399,7 +453,7 @@ verify_checksum() {
       echo "unexpected checksum length: ${#expected_checksum} (${expected_checksum})"
       echo "expected 0 (no checksum), 32 (MD5), 64 (SHA2-256), or 128 (SHA2-512)"
       echo
-    } >&4
+    } >&2
     return 1 ;;
   esac
 
@@ -407,7 +461,8 @@ verify_checksum() {
   has_checksum_support "$checksum_command" || return 0
 
   # If the computed checksum is empty, return failure
-  local computed_checksum=`echo "$($checksum_command < "$filename")" | tr [A-Z] [a-z]`
+  local computed_checksum
+  computed_checksum="$("$checksum_command" < "$filename" | tr 'A-F' 'a-f')"
   [ -n "$computed_checksum" ] || return 1
 
   if [ "$expected_checksum" != "$computed_checksum" ]; then
@@ -415,7 +470,7 @@ verify_checksum() {
       echo "checksum mismatch: ${filename} (file is corrupt)"
       echo "expected $expected_checksum, got $computed_checksum"
       echo
-    } >&4
+    } >&2
     return 1
   fi
 }
@@ -425,9 +480,10 @@ http() {
   [ -n "$2" ] || return 1
   shift 1
 
-  TEXLIVE_INSTALL_HTTP_CLIENT="${TEXLIVE_INSTALL_HTTP_CLIENT:-$(detect_http_client 2>&3)}"
+  TEXLIVE_INSTALL_HTTP_CLIENT="${TEXLIVE_INSTALL_HTTP_CLIENT:-$(detect_http_client)}"
   [ -n "$TEXLIVE_INSTALL_HTTP_CLIENT" ] || return 1
 
+  # http_get_curl, http_get_wget, etc.
   "http_${method}_${TEXLIVE_INSTALL_HTTP_CLIENT}" "$@"
 }
 
@@ -444,32 +500,40 @@ detect_http_client() {
 }
 
 http_head_aria2c() {
-  aria2c --dry-run --no-conf=true ${ARIA2_OPTS} "$1" >&4 2>&1
+  # shellcheck disable=SC2086
+  aria2c --dry-run --no-conf=true $ARIA2_OPTS "$1" >/dev/null
 }
 
 http_get_aria2c() {
-  local out="${2:-$(mktemp "out.XXXXXX")}"
-  if aria2c --allow-overwrite=true --no-conf=true -o "${out}" ${ARIA2_OPTS} "$1" >&4; then
-    [ -n "$2" ] || cat "${out}"
+  local destfile="$2"
+  if [[ $destfile == /* ]]; then
+    # the "-o" option to aria2c cannot be an absolute path, but we can achieve that with "--dir"
+    # shellcheck disable=SC2086
+    log_command aria2c --allow-overwrite=true --no-conf=true --console-log-level=warn --stderr $ARIA2_OPTS --dir "${destfile%/*}" -o "${destfile##*/}" "$1" 2>&3
   else
-    false
+    # shellcheck disable=SC2086
+    log_command aria2c --allow-overwrite=true --no-conf=true --console-log-level=warn --stderr $ARIA2_OPTS -o "$destfile" "$1" 2>&3
   fi
 }
 
 http_head_curl() {
-  curl -qsILf ${CURL_OPTS} "$1" >&4 2>&1
+  # shellcheck disable=SC2086
+  curl -qsILf $CURL_OPTS "$1" >/dev/null
 }
 
 http_get_curl() {
-  curl -q -o "${2:--}" -sSLf ${CURL_OPTS} "$1"
+  # shellcheck disable=SC2086
+  log_command curl -q -fL $CURL_OPTS -o "$2" "$1" 2>&3
 }
 
 http_head_wget() {
-  wget -q --spider ${WGET_OPTS} "$1" >&4 2>&1
+  # shellcheck disable=SC2086
+  wget -q --spider $WGET_OPTS "$1" >/dev/null
 }
 
 http_get_wget() {
-  wget -nv ${WGET_OPTS} -O "${2:--}" "$1"
+  # shellcheck disable=SC2086
+  log_command wget $WGET_OPTS -O "$2" "$1" 2>&3
 }
 
 fetch_tarball() {
@@ -483,13 +547,15 @@ fetch_tarball() {
     checksum="${package_url#*#}"
     package_url="${package_url%%#*}"
 
+    # Unlike ruby-build, texlive-install has no default mirror: the tlnet
+    # repository to install from is part of each definition and can be
+    # overridden with $TEXLIVE_INSTALL_TLNET. $TEXLIVE_INSTALL_MIRROR_URL, if
+    # set, is expected to host `install-tl-unx.tar.gz' under the same name.
     if [ -n "$TEXLIVE_INSTALL_MIRROR_URL" ]; then
-      mirror_url="$TEXLIVE_INSTALL_MIRROR_URL"
+      mirror_url="${TEXLIVE_INSTALL_MIRROR_URL}/${package_url##*/}"
     elif [ -n "$TEXLIVE_INSTALL_MIRROR_PACKAGE_URL" ]; then
       mirror_url="$TEXLIVE_INSTALL_MIRROR_PACKAGE_URL"
     fi
-
-    mirror_url=http://127.0.0.1/WE_DO_NOT_USE_TEXLIVE_INSTALL_MIRROR_URL
   fi
 
   local tar_args="xzf"
@@ -497,33 +563,30 @@ fetch_tarball() {
 
   if [ "$package_url" != "${package_url%bz2}" ]; then
     if ! type -p bzip2 >/dev/null; then
-      echo "warning: bzip2 not found; consider installing \`bzip2\` package" >&4
+      echo "warning: bzip2 not found; consider installing the \`bzip2\` package" >&2
     fi
     package_filename="${package_filename%.gz}.bz2"
     tar_args="${tar_args/z/j}"
   fi
 
   if ! reuse_existing_tarball "$package_filename" "$checksum"; then
-    local tarball_filename="$(basename "$package_url")"
-    echo "Downloading ${tarball_filename}..." >&2
+    local tarball_filename
+    tarball_filename="$(basename "$package_url")"
+    log_info "Downloading ${tarball_filename}..."
+    # shellcheck disable=SC2015
     http head "$mirror_url" &&
     download_tarball "$mirror_url" "$package_filename" "$checksum" ||
     download_tarball "$package_url" "$package_filename" "$checksum"
   fi
 
-  { if tar $tar_args "$package_filename"; then
-      if [ ! -d "$package_name" ]; then
-        extracted_dir="$(find_extracted_directory)"
-        mv "$extracted_dir" "$package_name"
-      fi
+  log_command tar "$tar_args" "$package_filename" >/dev/null
 
-      if [ -z "$KEEP_BUILD_PATH" ]; then
-        rm -f "$package_filename"
-      else
-        true
-      fi
-    fi
-  } >&4 2>&1
+  if [ ! -d "$package_name" ]; then
+    extracted_dir="$(find_extracted_directory)"
+    mv "$extracted_dir" "$package_name"
+  fi
+
+  [ -n "$KEEP_BUILD_PATH" ] || rm -f "$package_filename"
 }
 
 find_extracted_directory() {
@@ -551,8 +614,8 @@ reuse_existing_tarball() {
   local cached_package_filename="${TEXLIVE_INSTALL_CACHE_PATH}/$package_filename"
 
   [ -e "$cached_package_filename" ] || return 1
-  verify_checksum "$cached_package_filename" "$checksum" >&4 2>&1 || return 1
-  ln -s "$cached_package_filename" "$package_filename" >&4 2>&1 || return 1
+  verify_checksum "$cached_package_filename" "$checksum" || return 1
+  ln -s "$cached_package_filename" "$package_filename" || return 1
 }
 
 download_tarball() {
@@ -562,10 +625,8 @@ download_tarball() {
   local package_filename="$2"
   local checksum="$3"
 
-  echo "-> $package_url" >&2
-
-  if http get "$package_url" "$package_filename" >&4 2>&1; then
-    verify_checksum "$package_filename" "$checksum" >&4 2>&1 || return 1
+  if http get "$package_url" "$package_filename"; then
+    verify_checksum "$package_filename" "$checksum" || return 1
   else
     echo "error: failed to download $package_filename" >&2
     return 1
@@ -573,62 +634,8 @@ download_tarball() {
 
   if [ -n "$TEXLIVE_INSTALL_CACHE_PATH" ]; then
     local cached_package_filename="${TEXLIVE_INSTALL_CACHE_PATH}/$package_filename"
-    { mv "$package_filename" "$cached_package_filename"
-      ln -s "$cached_package_filename" "$package_filename"
-    } >&4 2>&1 || return 1
-  fi
-}
-
-fetch_git() {
-  local package_name="$1"
-  local git_url="$2"
-  local git_ref="$3"
-
-  echo "Cloning ${git_url}..." >&2
-
-  if type git &>/dev/null; then
-    if [ -n "$TEXLIVE_INSTALL_CACHE_PATH" ]; then
-      pushd "$TEXLIVE_INSTALL_CACHE_PATH" >&4
-      local clone_name="$(sanitize "$git_url")"
-      if [ -e "${clone_name}" ]; then
-        { cd "${clone_name}"
-          git fetch --force "$git_url" "+${git_ref}:${git_ref}"
-        } >&4 2>&1
-      else
-        git clone --bare --branch "$git_ref" "$git_url" "${clone_name}" >&4 2>&1
-      fi
-      git_url="$TEXLIVE_INSTALL_CACHE_PATH/${clone_name}"
-      popd >&4
-    fi
-
-    if [ -e "${package_name}" ]; then
-      ( cd "${package_name}"
-        git fetch --depth 1 origin "+${git_ref}"
-        git checkout -q -B "$git_ref" "origin/${git_ref}"
-      ) >&4 2>&1
-    else
-      git clone --depth 1 --branch "$git_ref" "$git_url" "${package_name}" >&4 2>&1
-    fi
-  else
-    echo "error: please install \`git\` and try again" >&2
-    exit 1
-  fi
-}
-
-fetch_svn() {
-  local package_name="$1"
-  local svn_url="$2"
-  local svn_rev="$3"
-
-  echo "Checking out ${svn_url}..." >&2
-
-  if type svn &>/dev/null; then
-    svn co -r "$svn_rev" "$svn_url" "${package_name}" >&4 2>&1
-  elif type svnlite &>/dev/null; then
-    svnlite co -r "$svn_rev" "$svn_url" "${package_name}" >&4 2>&1
-  else
-    echo "error: please install Subversion and try again" >&2
-    exit 1
+    mv "$package_filename" "$cached_package_filename"
+    ln -s "$cached_package_filename" "$package_filename"
   fi
 }
 
@@ -655,24 +662,53 @@ list_definitions() {
   } | sort_versions | uniq
 }
 
-# list only latest stable versions excluding RC, preview, dev and EoL'ed
+# list only latest stable versions excluding pretest, RC, preview, dev and EoL'ed
 list_maintained_versions() {
   { for DEFINITION_DIR in "${TEXLIVE_INSTALL_DEFINITIONS[@]}"; do
       [ -d "$DEFINITION_DIR" ] && \
         grep -L -e warn_eol "$DEFINITION_DIR"/* 2>/dev/null | \
         sed 's|.*/||' | \
-        grep -v -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$'
+        grep -v -e '^pretest$' -e '-pretest$' \
+                -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$'
     done
   } | extract_latest_versions | sort_versions | uniq
 }
 
+# resolve a version prefix to the exact version name for which exists a
+# definition file. Example: "langjapanese" => "langjapanese-2026"
+resolve_version() {
+  local version="$1"
+
+  # Look for an exact match first.
+  for DEFINITION_DIR in "${TEXLIVE_INSTALL_DEFINITIONS[@]}"; do
+    if [ -f "${DEFINITION_DIR}/${version}" ]; then
+      echo "$version"
+      return 0
+    fi
+  done
+
+  local grep_pattern="${version%.}"
+  grep_pattern="$(tr 'A-Z' 'a-z' <<<"${grep_pattern//./\\.}")"
+
+  version=$(list_definitions | \
+    grep -e "^${grep_pattern}[-.]" | \
+    grep -v -e '^pretest$' -e '-pretest$' \
+            -e '-rc[0-9]*$' -e '-preview[0-9]*$' -e '-dev$' | \
+    tail -n 1)
+
+  [ -n "$version" ] || return 1
+  echo "$version"
+}
+
 extract_latest_versions() {
-  # sort in this function looks redundunt but it is necessary
-  # rbx-3.99 appears latest unless the sort
-  sed 'h; s/[-]/./g; s/.p\([[:digit:]]\)/.z.\1/; s/$/.z/; G; s/\n/ /' | \
-    LC_ALL=C sort -t. -k 1,1 -k 2,2n -k 3,3n -k 4,4n -k 5,5n | \
-    sed 's/[.]/ /; s/[0-9].*z //; s/^\([0-9].[0-9]\)/mri\1 \1/' | \
-    awk '{ latest[$1] =$2 } END{ for(key in latest) { print latest[key] } }'
+  # Group definitions into series by removing the digits from their names
+  # ("2026" => "", "langjapanese-2026" => "langjapanese-", "current" =>
+  # "current") and print only the latest definition of each series. The input
+  # has to be sorted first so that the last definition seen of a series is
+  # also its latest one.
+  sort_versions | awk '
+    { series = $0; gsub(/[0-9]+/, "", series); latest[series] = $0 }
+    END { for (series in latest) { print latest[series] } }'
 }
 
 sort_versions() {
@@ -683,12 +719,14 @@ sort_versions() {
 
 unset VERBOSE
 unset KEEP_BUILD_PATH
-unset HAS_PATCH
 unset IPV4
 unset IPV6
+unset EARLY_EXIT
+unset APPEND_DEFINITION_TO_PREFIX
 
 TEXLIVE_INSTALL_INSTALL_PREFIX="$(abs_dirname "$0")/.."
 
+# shellcheck disable=SC2206
 IFS=: TEXLIVE_INSTALL_DEFINITIONS=($TEXLIVE_INSTALL_DEFINITIONS ${TEXLIVE_INSTALL_ROOT:-$TEXLIVE_INSTALL_INSTALL_PREFIX}/share/texlive-install)
 IFS="$OLDIFS"
 
@@ -697,26 +735,30 @@ parse_options "$@"
 for option in "${OPTIONS[@]}"; do
   case "$option" in
   "h" | "help" )
-    version
-    echo
-    usage 0
+    EARLY_EXIT=help
     ;;
   "definitions" )
-    list_definitions
-    exit 0
+    EARLY_EXIT=list_definitions
     ;;
   "l" | "list")
-    list_maintained_versions
-    exit 0
+    EARLY_EXIT=list_maintained_versions
+    ;;
+  "resolve")
+    if [ "${#ARGUMENTS[*]}" -eq 1 ]; then
+      EARLY_EXIT=resolve_version
+    else
+      echo "texlive-install: '--resolve' needs an argument" >&2
+      EARLY_EXIT=usage_error
+    fi
+    ;;
+  "d" | "dir")
+    APPEND_DEFINITION_TO_PREFIX=true
     ;;
   "k" | "keep" )
     KEEP_BUILD_PATH=true
     ;;
   "v" | "verbose" )
     VERBOSE=true
-    ;;
-  "p" | "patch" )
-    HAS_PATCH=true
     ;;
   "4" | "ipv4")
     IPV4=true
@@ -725,35 +767,90 @@ for option in "${OPTIONS[@]}"; do
     IPV6=true
     ;;
   "version" )
-    version
-    exit 0
+    EARLY_EXIT=version
+    ;;
+  * )
+    printf "texlive-install: invalid flag '%s'\n" "$option" >&2
+    EARLY_EXIT=usage_error
     ;;
   esac
 done
 
-[ "${#ARGUMENTS[@]}" -eq 2 ] || usage 1 >&2
-
 DEFINITION_PATH="${ARGUMENTS[0]}"
-if [ -z "$DEFINITION_PATH" ]; then
-  usage 1 >&2
-elif [ ! -f "$DEFINITION_PATH" ]; then
-  for DEFINITION_DIR in "${TEXLIVE_INSTALL_DEFINITIONS[@]}"; do
-    if [ -f "${DEFINITION_DIR}/${DEFINITION_PATH}" ]; then
-      DEFINITION_PATH="${DEFINITION_DIR}/${DEFINITION_PATH}"
-      break
-    fi
-  done
+PREFIX_PATH="${ARGUMENTS[1]}"
 
-  if [ ! -f "$DEFINITION_PATH" ]; then
+if [ -z "$EARLY_EXIT" ] && [ -z "$DEFINITION_PATH" ]; then
+  echo "texlive-install: missing definition argument" >&2
+  EARLY_EXIT=usage_error
+fi
+
+if [ -z "$EARLY_EXIT" ] && [ -z "$PREFIX_PATH" ]; then
+  echo "texlive-install: missing prefix argument" >&2
+  EARLY_EXIT=usage_error
+fi
+
+if [ "${#ARGUMENTS[@]}" -gt 2 ]; then
+  echo "texlive-install: expected at most 2 arguments, got [${ARGUMENTS[*]}]" >&2
+  EARLY_EXIT=usage_error
+fi
+
+# Extra arguments after `--' are passed through to `install-tl'.
+if [ "${#EXTRA_ARGUMENTS[@]}" -gt 0 ]; then
+  TEXLIVE_INSTALL_OPTS_ARRAY=("${EXTRA_ARGUMENTS[@]}")
+fi
+
+if [[ "$APPEND_DEFINITION_TO_PREFIX" = "true" && -p "$DEFINITION_PATH" ]]; then
+  echo "texlive-install: using named pipes in combination with \`--dir' is not possible" >&2
+  EARLY_EXIT=usage_error
+fi
+
+case "$EARLY_EXIT" in
+help )
+  version
+  echo
+  usage 0
+  ;;
+version | list_definitions | list_maintained_versions )
+  "$EARLY_EXIT"
+  exit 0
+  ;;
+resolve_version )
+  resolve_version "${ARGUMENTS[0]}" || exit 1
+  exit 0
+  ;;
+usage_error )
+  echo >&2
+  usage 1 >&2
+  ;;
+'' )
+  ;;
+* )
+  echo "unimplemented EARLY_EXIT: $EARLY_EXIT" >&2
+  exit 1
+  ;;
+esac
+
+# expand the <definition> argument to full path of the definition file
+if [[ ! -f "$DEFINITION_PATH" && ! -p "$DEFINITION_PATH" ]]; then
+  if ! VERSION_NAME="$(resolve_version "$DEFINITION_PATH")"; then
     echo "texlive-install: definition not found: ${DEFINITION_PATH}" >&2
     exit 2
   fi
+
+  for DEFINITION_DIR in "${TEXLIVE_INSTALL_DEFINITIONS[@]}"; do
+    if [ -f "${DEFINITION_DIR}/${VERSION_NAME}" ]; then
+      DEFINITION_PATH="${DEFINITION_DIR}/${VERSION_NAME}"
+      break
+    fi
+  done
 fi
 
-PREFIX_PATH="${ARGUMENTS[1]}"
-if [ -z "$PREFIX_PATH" ]; then
-  usage 1 >&2
-elif [ "${PREFIX_PATH#/}" = "$PREFIX_PATH" ]; then
+if [ "$APPEND_DEFINITION_TO_PREFIX" = "true" ]; then
+  PREFIX_PATH="$PREFIX_PATH/$(basename "$DEFINITION_PATH")"
+fi
+
+# normalize the <prefix> argument
+if [ "${PREFIX_PATH#/}" = "$PREFIX_PATH" ]; then
   PREFIX_PATH="${PWD}/${PREFIX_PATH}"
 fi
 
@@ -783,31 +880,14 @@ if [ -n "$noexec" ]; then
   exit 1
 fi
 
-if [ -z "$MAKE" ]; then
-  if [ "FreeBSD" = "$(uname -s)" ]; then
-    # Workaround for TeX Live bug 16331: https://bugs.ruby-lang.org/issues/16331
-    # Due to this bug, build will fail with FreeBSD's make after #1368
-    # The bug is already fixed in upstream but GNU make is still required
-    # when building older releases of TeX Live. Use GNU make rather than switching
-    # depending of TeX Live version.
-    export MAKE="gmake"
-  else
-    export MAKE="make"
-  fi
-fi
-
 if [ -n "$TEXLIVE_INSTALL_CACHE_PATH" ] && [ -d "$TEXLIVE_INSTALL_CACHE_PATH" ]; then
   TEXLIVE_INSTALL_CACHE_PATH="${TEXLIVE_INSTALL_CACHE_PATH%/}"
 else
   unset TEXLIVE_INSTALL_CACHE_PATH
 fi
 
-if [ -z "$TEXLIVE_INSTALL_MIRROR_URL" -a -z "$TEXLIVE_INSTALL_MIRROR_PACKAGE_URL" ]; then
-  TEXLIVE_INSTALL_MIRROR_URL="http://mirror.ctan.org/systems/texlive/tlnet"
-  TEXLIVE_INSTALL_DEFAULT_MIRROR=1
-else
+if [ -n "$TEXLIVE_INSTALL_MIRROR_URL" ]; then
   TEXLIVE_INSTALL_MIRROR_URL="${TEXLIVE_INSTALL_MIRROR_URL%/}"
-  TEXLIVE_INSTALL_DEFAULT_MIRROR=
 fi
 
 if [ -n "$TEXLIVE_INSTALL_SKIP_MIRROR" ] || ! has_checksum_support compute_sha2; then
@@ -820,7 +900,6 @@ WGET_OPTS="${TEXLIVE_INSTALL_WGET_OPTS} ${IPV4+--inet4-only} ${IPV6+--inet6-only
 
 SEED="$(date "+%Y%m%d%H%M%S").$$"
 LOG_PATH="${TMP}/texlive-install.${SEED}.log"
-CWD="$(pwd)"
 
 if [ -z "$TEXLIVE_INSTALL_BUILD_PATH" ]; then
   BUILD_PATH="$(mktemp -d "${LOG_PATH%.log}.XXXXXX")"
@@ -828,22 +907,27 @@ else
   BUILD_PATH="$TEXLIVE_INSTALL_BUILD_PATH"
 fi
 
-exec 4<> "$LOG_PATH" # open the log file at fd 4
 if [ -n "$VERBOSE" ]; then
-  tail -f "$LOG_PATH" &
-  TAIL_PID=$!
-  trap "kill $TAIL_PID" SIGINT SIGTERM EXIT
+  # open the original stdout at fd 4
+  exec 4<&1
 else
-  if [ -z "$TEXLIVE_INSTALL_TESTING" ]; then
-    echo "To follow progress, use 'tail -f $LOG_PATH' or pass --verbose" >&2
-  fi
+  # open the log file at fd 4
+  exec 4<> "$LOG_PATH"
 fi
 
 TEXLIVE_INSTALL_PLATFORM=${TEXLIVE_INSTALL_PLATFORM:-}
 TEXLIVE_INSTALL_TLNET=${TEXLIVE_INSTALL_TLNET:-}
 
+# If something goes wrong during installing, print error information to stderr.
 trap build_failed ERR
+
+# This is where the magic happens: execute commands from the definition
+# file while in a temporary build directory. This will typically result in
+# `install_texlive' running the TeX Live installer.
 mkdir -p "$BUILD_PATH"
+# shellcheck disable=SC1090
 source "$DEFINITION_PATH"
+
+# By default, the temporary build path is wiped after successful install.
 [ -z "${KEEP_BUILD_PATH}" ] && rm -fr "$BUILD_PATH"
 trap - ERR
