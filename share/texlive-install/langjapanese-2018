@@ -10,6 +10,7 @@ TL_ADDPKGS=(
     ## TL12+
     algorithms algorithmicx
     bbold bbold-type1
+    bera
     ebgaramond
     fontawesome
     inconsolata
