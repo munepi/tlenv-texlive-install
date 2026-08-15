@@ -2,12 +2,12 @@
 .\"     Title: texlive-install
 .\"    Author: Munehiro Yamamoto
 .\" Generator: Asciidoctor 2.0.26
-.\"      Date: 2026-08-09
+.\"      Date: 2026-08-15
 .\"    Manual: texlive-install Manual
 .\"    Source: texlive-install 20260809
 .\"  Language: English
 .\"
-.TH "TEXLIVE\-INSTALL" "1" "2026-08-09" "texlive\-install 20260809" "texlive\-install Manual"
+.TH "TEXLIVE\-INSTALL" "1" "2026-08-15" "texlive\-install 20260809" "texlive\-install Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -246,7 +246,8 @@ The tlnet repository to install TeX Live from, overriding the one named in the d
 .sp
 \fBTEXLIVE_INSTALL_PLATFORM\fP
 .RS 4
-The TeX Live platform to install, forwarded to "install\-tl \-force\-platform", instead of auto\-detecting the current platform
+The TeX Live platform to install, forwarded to "install\-tl \-force\-platform", instead of auto\-detecting the current platform.
+On Apple silicon this defaults to "x86_64\-darwin" for the TeX Live 2010\(em2012 and 2017\(em2019 releases, which ship no arm64 macOS binaries; set this variable to override that default
 .RE
 .sp
 \fBTEXLIVE_INSTALL_HTTP_CLIENT\fP (default: first tool found in PATH)

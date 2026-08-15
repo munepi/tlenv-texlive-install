@@ -143,7 +143,8 @@ $ tlenv install 2026
   The tlnet repository to install TeX Live from, overriding the one named in the definition
 
 *TEXLIVE_INSTALL_PLATFORM*::
-  The TeX Live platform to install, forwarded to "install-tl -force-platform", instead of auto-detecting the current platform
+  The TeX Live platform to install, forwarded to "install-tl -force-platform", instead of auto-detecting the current platform.
+  On Apple silicon this defaults to "x86_64-darwin" for the TeX Live 2010--2012 and 2017--2019 releases, which ship no arm64 macOS binaries; set this variable to override that default
 
 *TEXLIVE_INSTALL_HTTP_CLIENT* (default: first tool found in PATH)::
   One of "aria2c", "curl", or "wget" to use for downloading

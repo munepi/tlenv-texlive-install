@@ -249,6 +249,23 @@ num_cpu_cores() {
   echo "${num:-2}"
 }
 
+# TeX Live releases that ship no arm64 macOS binaries. On Apple silicon these
+# have to be installed with `install-tl -force-platform x86_64-darwin' and run
+# through Rosetta 2; auto-detection would otherwise pick a platform that is not
+# present in those repositories. Returns nothing when the default applies.
+default_texlive_install_platform() {
+  local texlive_install_version="$1"
+
+  [ "$(uname -s)" = "Darwin" ] || return 0
+  [ "$(uname -m)" = "arm64" ] || return 0
+
+  case "$texlive_install_version" in
+  201[0-2] | 201[7-9] )
+    echo "x86_64-darwin"
+    ;;
+  esac
+}
+
 install_texlive() {
   local texlive_install_version="$1"
   local texlive_install_tlnet="$2"
@@ -267,6 +284,12 @@ install_texlive() {
   fi
   texlive_install_tl_unx="${texlive_install_tlnet}${texlive_install_tl_unx_tarball}"
   fetch_tarball install-tl-unx "$texlive_install_tl_unx"
+
+  if [ -z "${TEXLIVE_INSTALL_PLATFORM}" ]; then
+    TEXLIVE_INSTALL_PLATFORM="$(default_texlive_install_platform "${texlive_install_version}")"
+    [ -z "${TEXLIVE_INSTALL_PLATFORM}" ] ||
+      log_info "TeX Live ${texlive_install_version} has no arm64 macOS binaries; forcing ${TEXLIVE_INSTALL_PLATFORM}"
+  fi
 
   if [ -n "${TEXLIVE_INSTALL_PLATFORM}" ]; then
     texlive_arch="${TEXLIVE_INSTALL_PLATFORM}"
