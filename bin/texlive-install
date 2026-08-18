@@ -381,6 +381,12 @@ ent_str_size=2000
 error_line=254
 half_error_line=238
 max_print_line=1048576
+
+% (up)bibtex requires max_print_line < buf_size (=200000); restore the default for BibTeX family only
+max_print_line.bibtex   = 79
+max_print_line.pbibtex  = 79
+max_print_line.upbibtex = 79
+max_print_line.bibtexu  = 79
 __CNF__
 
   # shellcheck disable=SC2164
