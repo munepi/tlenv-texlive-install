@@ -17,7 +17,7 @@
 #   -6, --ipv6      Resolve names to IPv6 addresses only
 #
 
-TEXLIVE_INSTALL_VERSION="20260809"
+TEXLIVE_INSTALL_VERSION="20260822"
 
 OLDIFS="$IFS"
 
