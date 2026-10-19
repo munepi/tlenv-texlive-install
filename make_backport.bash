@@ -33,12 +33,22 @@ mkdir -p "$work/tarball" "$work/containers" "$work/tip"
 curl --fail -sSL -o "$work/install-tl-unx.tar.gz" "${tlnet}install-tl-unx.tar.gz"
 tar -xzf "$work/install-tl-unx.tar.gz" -C "$work/tarball"
 tarball_dir="$(echo "$work"/tarball/install-tl-*)"
-for container in texlive.infra texlive-scripts; do
+git -C "$repo" archive "$tip" | tar -xf - -C "$work/tip"
+
+## the packages that install the files of the backport branch, e.g.
+## texlive.infra and texlive-scripts (tetex for fmtutil.pl up to TL2018)
+curl --fail -sSL -o "$work/texlive.tlpdb.xz" "${tlnet}tlpkg/texlive.tlpdb.xz"
+xz -dc "$work/texlive.tlpdb.xz" >"$work/texlive.tlpdb"
+(cd "$work/tip" && find . -type f | sed 's,^\./,,') >"$work/tipfiles"
+containers="$(awk -v list="$work/tipfiles" '
+  BEGIN { while ((getline f <list) > 0) want[f] = 1 }
+  /^name / { name = $2 }
+  /^ / { sub(/^ +/, ""); if (($1 in want) && name !~ /^00texlive/) print name }
+' "$work/texlive.tlpdb" | sort -u)"
+for container in $containers; do
   curl --fail -sSL -o "$work/${container}.tar.xz" "${tlnet}archive/${container}.tar.xz"
   tar -xJf "$work/${container}.tar.xz" -C "$work/containers"
 done
-
-git -C "$repo" archive "$tip" | tar -xf - -C "$work/tip"
 
 rm -rf "$deploy_dir"
 mkdir -p "$deploy_dir"
