@@ -62,6 +62,20 @@ git -C "$repo" diff --name-only "$base" "$tip" | sort | while read -r file; do
     echo "$(shasum -a 512 <"$work/containers/$file" | cut -f1 -d" ")  $file" >>"$work/sums"
   fi
 done
+
+## The installed TeX Live gets the modules of texlive.infra, which may be
+## older than those of install-tl-unx.tar.gz the backport is based on (e.g.
+## TL2024). Install the unchanged installer modules too, so that tlmgr runs
+## with the same set of modules as install-tl.
+(cd "$work/tip" && find tlpkg/TeXLive texmf-dist/scripts/texlive -type f) | sort | while read -r file; do
+  grep -qxF "$file" "$deploy_dir/FILES.prefix" && continue
+  [ -f "$work/containers/$file" ] || continue
+  cmp -s "$work/tip/$file" "$work/containers/$file" && continue
+  mkdir -p "$deploy_dir/$(dirname "$file")"
+  cp -p "$work/tip/$file" "$deploy_dir/$file"
+  echo "$file" >>"$deploy_dir/FILES.prefix"
+  echo "$(shasum -a 512 <"$work/containers/$file" | cut -f1 -d" ")  $file" >>"$work/sums"
+done
 sort -u "$work/sums" -o "$deploy_dir/SHA512SUMS.orig"
 
 ## what install-tl itself passes to fmtutil-sys, e.g.
