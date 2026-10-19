@@ -434,7 +434,10 @@ install_texlive() {
     capture_command "${PREFIX_PATH}/bin/${texlive_arch}/tlmgr" option formats 1
     log_info "Building formats..."
     read -r -a fmtutil_args <"${texlive_backport_dir}/FMTUTIL_ARGS"
-    capture_command "${PREFIX_PATH}/bin/${texlive_arch}/fmtutil-sys" "${fmtutil_args[@]}" ||
+    # like install-tl, run it with the bin directory of this TeX Live first
+    # in PATH; fmtutil-sys.sh of TL2013 and earlier does not set it up
+    capture_command env PATH="${PREFIX_PATH}/bin/${texlive_arch}:$PATH" \
+                    "${PREFIX_PATH}/bin/${texlive_arch}/fmtutil-sys" "${fmtutil_args[@]}" ||
       echo "warning: fmtutil-sys failed; see the log file for details" >&2
   fi
 

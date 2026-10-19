@@ -102,7 +102,8 @@ perl -I"$work/tip/tlpkg" -MTeXLive::TLConfig -e '
   local $/; my $src = <>;
   my $common = "";
   $common = eval $1 if ($src =~ /our \$common_fmtutil_args\s*=\s*(.*?);/s);
-  $src =~ /"fmtutil-sys (.*?--all)"/ or die "fmtutil-sys call not found\n";
+  # in quotes or, up to TL2013, in backquotes
+  $src =~ /["`]fmtutil-sys (.*?--all)/ or die "fmtutil-sys call not found\n";
   (my $args = $1) =~ s/\$common_fmtutil_args/$common/;
   print "$args\n";
 ' "$work/tip/install-tl" >"$deploy_dir/FMTUTIL_ARGS"
