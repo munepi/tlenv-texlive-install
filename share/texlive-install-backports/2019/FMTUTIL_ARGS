@@ -1,0 +1,1 @@
+--no-error-if-no-engine=luahbtex,luajittex,mfluajit --no-strict --all
