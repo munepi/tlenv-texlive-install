@@ -274,6 +274,9 @@ default_texlive_install_platform() {
 #   SHA512SUMS.orig   checksums of the vanilla files they replace
 #   FILES.installer   files to replace in the extracted install-tl-unx
 #   FILES.prefix      files to replace in the installed TeX Live
+#   FILES.prefix-new  files to add to the installed TeX Live (optional)
+#   LINKS.prefix      "<name> <target>" links to make in bin/<platform>
+#                     of the installed TeX Live (optional)
 #   FMTUTIL_ARGS      arguments install-tl itself passes to fmtutil-sys
 #
 # The files are replaced only if every one of them matches SHA512SUMS.orig;
@@ -311,6 +314,28 @@ apply_texlive_backport() {
     # cp onto the existing file keeps its permissions
     cp "${backport_dir}/${file}" "${target_dir}/${file}" || return 1
   done <"${backport_dir}/${list}"
+}
+
+# Add the files of <backport_dir>/FILES.prefix-new to <prefix> and make the
+# links of <backport_dir>/LINKS.prefix in <prefix>/bin/<platform>, e.g.
+# fmtutil.pl, which TeX Live 2014 and earlier do not have yet.
+apply_texlive_backport_extras() {
+  local backport_dir="$1"
+  local prefix="$2"
+  local platform="$3"
+  local file name target
+
+  if [ -f "${backport_dir}/FILES.prefix-new" ]; then
+    while read -r file; do
+      mkdir -p "${prefix}/$(dirname "$file")" || return 1
+      cp -p "${backport_dir}/${file}" "${prefix}/${file}" || return 1
+    done <"${backport_dir}/FILES.prefix-new"
+  fi
+  if [ -f "${backport_dir}/LINKS.prefix" ]; then
+    while read -r name target; do
+      ln -sf "$target" "${prefix}/bin/${platform}/${name}" || return 1
+    done <"${backport_dir}/LINKS.prefix"
+  fi
 }
 
 install_texlive() {
@@ -399,7 +424,8 @@ install_texlive() {
                   "${install_tl_opts[@]}" "$@" "${TEXLIVE_INSTALL_OPTS_ARRAY[@]}"
 
   if [ -n "$texlive_backport_dir" ]; then
-    if apply_texlive_backport "$texlive_backport_dir" FILES.prefix "${PREFIX_PATH}"; then
+    if apply_texlive_backport "$texlive_backport_dir" FILES.prefix "${PREFIX_PATH}" &&
+       apply_texlive_backport_extras "$texlive_backport_dir" "${PREFIX_PATH}" "${texlive_arch}"; then
       log_info "Applied the parallel download and fmtutil backport to ${PREFIX_PATH}"
     else
       echo "warning: ${PREFIX_PATH} does not match the backport for TeX Live ${texlive_install_version}; keeping the vanilla tlmgr and fmtutil" >&2

@@ -70,8 +70,16 @@ git -C "$repo" diff --name-only "$base" "$tip" | sort | while read -r file; do
   if [ -f "$work/containers/$file" ]; then
     echo "$file" >>"$deploy_dir/FILES.prefix"
     echo "$(shasum -a 512 <"$work/containers/$file" | cut -f1 -d" ")  $file" >>"$work/sums"
+  elif [ ! -f "$tarball_dir/$file" ]; then
+    # a file the release does not have at all, e.g. fmtutil.pl up to TL2014
+    echo "$file" >>"$deploy_dir/FILES.prefix-new"
   fi
 done
+
+## up to TL2014, bin/<platform>/fmtutil is a link to fmtutil.sh
+if grep -qxF texmf-dist/scripts/texlive/fmtutil.pl "$deploy_dir/FILES.prefix-new" 2>/dev/null; then
+  echo "fmtutil ../../texmf-dist/scripts/texlive/fmtutil.pl" >"$deploy_dir/LINKS.prefix"
+fi
 
 ## The installed TeX Live gets the modules of texlive.infra, which may be
 ## older than those of install-tl-unx.tar.gz the backport is based on (e.g.
