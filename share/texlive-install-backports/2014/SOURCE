@@ -1,0 +1,49 @@
+repository: texlive-installer
+branch:     backport/2014-parallel
+base:       4685b1ca2bec5e962be1d32c0cf0fdb44fce0667
+tip:        4cb06ad043d63880ef9faafb09158e0fea0fb94d
+tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2014/tlnet-final/
+
+upstream commits:
+  local [backport] TL2015 fmtutil.pl and mktexlsr.pl for TL2014
+  local [backport] fmtutil.pl: use only the active fmtutil.cnf for TL2014
+  local [backport] TL2018 downloader and compressor framework for TL2014
+  r80320 set up the LWP connection when TEXLIVE_DOWNLOADER=lwp asks for it
+  r80425 allow aria2c as a downloader
+  r80426 opt-in background container prefetch for install-tl / tlmgr
+  r80427 prefetch by running downloaders, so it works on Windows too
+  r80428 prefetch: do not verify what prefetch_stop killed
+  r80429 one downloader order for download_file and prefetch, report it
+  r80430 give up on lwp if it never reached the server
+  r80431 TL_PREFETCH=JOBS[:MB] and --prefetch for install-tl and tlmgr
+  r80432 warn if prefetch is asked for but cannot run
+  r80433 prefetch: wait for containers already being downloaded
+  r80434 prefetch: fix waiting for containers fetched by aria2c
+  r80435 [prefetch] extend TL_PREFETCH specification
+  r80436 [install-tl] move setup_persistent_downloads into only_load_remote
+  r80437 [TLUtils.pm] use Cwd::getcwd instead of cwd (spans shell)
+  r80438 Prefer TEXLIVE_ envvars over TL_, but accept the later
+  r80456 prefetch: default to 200M cache size
+  r80476 prefetch doc tweaks
+  r80479 (tl_env_renames): DOWNLOAD_ARGS not DOWNLOADS_ARGS; tweak doc.
+  r80485 doc,sync
+  r80561 fmtutil: add --parallel[=N] to build formats concurrently
+  r80599 [tlmgr,install-tl,fmtutil] make the prefetch/parallel options default to "auto"
+  r80600 doc
+  r80604 [prefetch] fix Windows CPU computation
+  r80605 [tlmgr,install-tl] prefix "Prefetching ..." with "<prg>: "
+  r80606 prefetching instead of Prefetching
+  r80630 TLUtils.pm (_download_files_command): write curl output paths with forward slashes; curl --config treats backslashes inside quotes as escapes, so prefetch failed on Windows
+  r80654 [prefetch] use info for the prefetching message
+  r80655 [fmtutil] make --quiet stop engine build logs showing up
+  r80656 [prefetch] better reporting and error handling for prefetch
+  r80657 [fmtutil,tlmgr] rebuild all formats in one fmtutil run
+  r80687 fix tlmgr prefetch documentation
+  local [backport] use win32() instead of wndws() for TL2020
+  local [backport] tlmgr.pl: set $::prg for TL2016
+  local [backport] TLUtils.pm: restore tlmd5 for TL2015
+  local [backport] TLUtils.pm: verify prefetched containers with MD5 for TL2015
+  local [backport] TLUtils.pm: add tl_tmpfile for TL2015
+  local [backport] TLUtils.pm: download_file returns the file handle for "|" in TL2015
+  local [backport] TLUtils.pm: install_package unpacks with unpack for TL2014
+  local [backport] TLUtils.pm: move check_file out of the POD for TL2014
