@@ -1,0 +1,10 @@
+install-tl
+texmf-dist/scripts/texlive/fmtutil.pl
+texmf-dist/scripts/texlive/tlmgr.pl
+tlpkg/TeXLive/TLConfig.pm
+tlpkg/TeXLive/TLDownload.pm
+tlpkg/TeXLive/TLPDB.pm
+tlpkg/TeXLive/TLUtils.pm
+tlpkg/TeXLive/TLCrypto.pm
+tlpkg/TeXLive/TLPOBJ.pm
+tlpkg/TeXLive/TLTREE.pm

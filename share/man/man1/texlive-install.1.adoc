@@ -167,6 +167,12 @@ $ tlenv install 2026
 *TEXLIVE_INSTALL_SKIP_MIRROR*::
   Bypass the download mirror and fetch all package files from their original URLs
 
+*TEXLIVE_INSTALL_NO_BACKPORT*::
+  For the frozen TeX Live releases that have a backport in "share/texlive-install-backports", texlive-install replaces install-tl, tlmgr, fmtutil and their TeXLive Perl modules with versions that carry the parallel container download (prefetch, aria2c) and the parallel format building (fmtutil --parallel) of TeX Live 2026, and builds the formats itself after install-tl.
+  The files are replaced only if they match the vanilla files of the release.
+  Set this variable to a non-empty value to use the vanilla files instead.
+  The usual "TEXLIVE_DOWNLOADER", "TEXLIVE_PREFETCH" and "FMTUTIL_PARALLEL" variables, and the "install-tl -prefetch" option, control the backported features
+
 *TEXLIVE_INSTALL_ROOT* (default: "share/texlive-install" within texlive-install install location)::
   Custom build definition directory
 

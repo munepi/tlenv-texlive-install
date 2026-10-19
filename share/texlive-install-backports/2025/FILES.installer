@@ -1,0 +1,5 @@
+install-tl
+texmf-dist/scripts/texlive/tlmgr.pl
+tlpkg/TeXLive/TLConfig.pm
+tlpkg/TeXLive/TLDownload.pm
+tlpkg/TeXLive/TLUtils.pm

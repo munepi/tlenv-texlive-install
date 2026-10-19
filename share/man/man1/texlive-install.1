@@ -2,12 +2,12 @@
 .\"     Title: texlive-install
 .\"    Author: Munehiro Yamamoto
 .\" Generator: Asciidoctor 2.0.26
-.\"      Date: 2026-08-22
+.\"      Date: 2026-10-19
 .\"    Manual: texlive-install Manual
 .\"    Source: texlive-install 20260822
 .\"  Language: English
 .\"
-.TH "TEXLIVE\-INSTALL" "1" "2026-08-22" "texlive\-install 20260822" "texlive\-install Manual"
+.TH "TEXLIVE\-INSTALL" "1" "2026-10-19" "texlive\-install 20260822" "texlive\-install Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -283,6 +283,14 @@ Custom complete mirror URL
 \fBTEXLIVE_INSTALL_SKIP_MIRROR\fP
 .RS 4
 Bypass the download mirror and fetch all package files from their original URLs
+.RE
+.sp
+\fBTEXLIVE_INSTALL_NO_BACKPORT\fP
+.RS 4
+For the frozen TeX Live releases that have a backport in "share/texlive\-install\-backports", texlive\-install replaces install\-tl, tlmgr, fmtutil and their TeXLive Perl modules with versions that carry the parallel container download (prefetch, aria2c) and the parallel format building (fmtutil \-\-parallel) of TeX Live 2026, and builds the formats itself after install\-tl.
+The files are replaced only if they match the vanilla files of the release.
+Set this variable to a non\-empty value to use the vanilla files instead.
+The usual "TEXLIVE_DOWNLOADER", "TEXLIVE_PREFETCH" and "FMTUTIL_PARALLEL" variables, and the "install\-tl \-prefetch" option, control the backported features
 .RE
 .sp
 \fBTEXLIVE_INSTALL_ROOT\fP (default: "share/texlive\-install" within texlive\-install install location)

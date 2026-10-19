@@ -1,0 +1,9 @@
+install-tl
+texmf/scripts/texlive/tlmgr.pl
+tlpkg/TeXLive/TLConfig.pm
+tlpkg/TeXLive/TLDownload.pm
+tlpkg/TeXLive/TLPDB.pm
+tlpkg/TeXLive/TLUtils.pm
+tlpkg/TeXLive/TLConfFile.pm
+tlpkg/TeXLive/TLPSRC.pm
+tlpkg/TeXLive/TLWinGoo.pm
