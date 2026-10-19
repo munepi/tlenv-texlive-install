@@ -266,13 +266,62 @@ default_texlive_install_platform() {
   esac
 }
 
+# Backports of the parallel container download (prefetch, aria2c) and the
+# parallel format building (fmtutil --parallel) of TeX Live 2026 onto the
+# frozen TeX Live releases. share/texlive-install-backports/<version>/ holds
+# the replacement files together with
+#
+#   SHA512SUMS.orig   checksums of the vanilla files they replace
+#   FILES.installer   files to replace in the extracted install-tl-unx
+#   FILES.prefix      files to replace in the installed TeX Live
+#   FMTUTIL_ARGS      arguments install-tl itself passes to fmtutil-sys
+#
+# The files are replaced only if every one of them matches SHA512SUMS.orig;
+# otherwise the vanilla files are kept. Set TEXLIVE_INSTALL_NO_BACKPORT=1 to
+# skip the backports altogether.
+texlive_install_backport_dir() {
+  local backport_dir
+  backport_dir="${TEXLIVE_INSTALL_ROOT:-$TEXLIVE_INSTALL_INSTALL_PREFIX}/share/texlive-install-backports/$1"
+
+  [ -z "${TEXLIVE_INSTALL_NO_BACKPORT}" ] || return 0
+  [ -f "${backport_dir}/SHA512SUMS.orig" ] || return 0
+  echo "$backport_dir"
+}
+
+# Replace the files listed in <backport_dir>/<list> under <target_dir>.
+apply_texlive_backport() {
+  local backport_dir="$1"
+  local list="$2"
+  local target_dir="$3"
+  local file checksum
+
+  while read -r file; do
+    if [ ! -f "${target_dir}/${file}" ]; then
+      echo "backport: ${target_dir}/${file} not found" >&4
+      return 1
+    fi
+    checksum="$(compute_sha5 <"${target_dir}/${file}")" || return 1
+    if ! grep -qxF "${checksum}  ${file}" "${backport_dir}/SHA512SUMS.orig"; then
+      echo "backport: ${target_dir}/${file} is not the expected vanilla file" >&4
+      return 1
+    fi
+  done <"${backport_dir}/${list}"
+
+  while read -r file; do
+    # cp onto the existing file keeps its permissions
+    cp "${backport_dir}/${file}" "${target_dir}/${file}" || return 1
+  done <"${backport_dir}/${list}"
+}
+
 install_texlive() {
   local texlive_install_version="$1"
   local texlive_install_tlnet="$2"
   local texlive_install_tl_unx_tarball="$3"   ##<= install-tl-unx.tar.gz#<sha256 or sha512>
   local texlive_install_tl_unx
   local texlive_arch
+  local texlive_backport_dir
   local -a install_tl_opts
+  local -a fmtutil_args
   shift 3
 
   # shellcheck disable=SC2164
@@ -284,6 +333,16 @@ install_texlive() {
   fi
   texlive_install_tl_unx="${texlive_install_tlnet}${texlive_install_tl_unx_tarball}"
   fetch_tarball install-tl-unx "$texlive_install_tl_unx"
+
+  texlive_backport_dir="$(texlive_install_backport_dir "${texlive_install_version}")"
+  if [ -n "$texlive_backport_dir" ]; then
+    if apply_texlive_backport "$texlive_backport_dir" FILES.installer ./install-tl-unx; then
+      log_info "Applied the parallel download backport to install-tl"
+    else
+      echo "warning: install-tl-unx does not match the backport for TeX Live ${texlive_install_version}; using the vanilla installer" >&2
+      texlive_backport_dir=
+    fi
+  fi
 
   if [ -z "${TEXLIVE_INSTALL_PLATFORM}" ]; then
     TEXLIVE_INSTALL_PLATFORM="$(default_texlive_install_platform "${texlive_install_version}")"
@@ -328,12 +387,30 @@ install_texlive() {
          "option_doc              0" \
          "option_src              0" \
          > ./install-tl-unx/texlive.profile
+  if [ -n "$texlive_backport_dir" ]; then
+    # the formats are built afterwards by the backported fmtutil
+    echo "option_fmt              0" >> ./install-tl-unx/texlive.profile
+  fi
 
   log_info "Installing TeX Live ${texlive_install_version}..."
   capture_command ./install-tl-unx/install-tl \
                   -profile ./install-tl-unx/texlive.profile \
                   -repository "${texlive_install_tlnet}" \
                   "${install_tl_opts[@]}" "$@" "${TEXLIVE_INSTALL_OPTS_ARRAY[@]}"
+
+  if [ -n "$texlive_backport_dir" ]; then
+    if apply_texlive_backport "$texlive_backport_dir" FILES.prefix "${PREFIX_PATH}"; then
+      log_info "Applied the parallel download and fmtutil backport to ${PREFIX_PATH}"
+    else
+      echo "warning: ${PREFIX_PATH} does not match the backport for TeX Live ${texlive_install_version}; keeping the vanilla tlmgr and fmtutil" >&2
+    fi
+    ## install-tl saved create_formats=0 into texlive.tlpdb; restore it
+    capture_command "${PREFIX_PATH}/bin/${texlive_arch}/tlmgr" option formats 1
+    log_info "Building formats..."
+    read -r -a fmtutil_args <"${texlive_backport_dir}/FMTUTIL_ARGS"
+    capture_command "${PREFIX_PATH}/bin/${texlive_arch}/fmtutil-sys" "${fmtutil_args[@]}" ||
+      echo "warning: fmtutil-sys failed; see the log file for details" >&2
+  fi
 
   ## remove the symbolic link bin/${texlive_arch}/man
   rm -f "${PREFIX_PATH}/bin/${texlive_arch}/man"
