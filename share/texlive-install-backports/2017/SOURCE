@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2017-parallel
 base:       28300f2f5064a0b3e3b2a1bbcdd2990e5a1c7cff
-tip:        ff0a6eb37c62aee58d0d2672ed7a6e52fe463186
+tip:        d7e08c62632400db224167a549942e4abba71187
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2017/tlnet-final/
 
 upstream commits:
@@ -38,3 +38,5 @@ upstream commits:
   r80657 [fmtutil,tlmgr] rebuild all formats in one fmtutil run
   r80687 fix tlmgr prefetch documentation
   local [backport] use win32() instead of wndws() for TL2020
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding

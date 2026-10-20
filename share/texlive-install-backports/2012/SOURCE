@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2012-parallel
 base:       21ddb54902601ba72ef2235774257b7b66f70cca
-tip:        db5e0fe41f188e1ee0fde81afc47e45203729f7b
+tip:        7086a7110ef4d11d38c7a852bb5bd09c0c74cd5d
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2012/tlnet-final/
 
 upstream commits:
@@ -47,3 +47,5 @@ upstream commits:
   local [backport] TLUtils.pm: download_file returns the file handle for "|" in TL2015
   local [backport] TLUtils.pm: install_package unpacks with unpack for TL2014
   local [backport] TLUtils.pm: move check_file out of the POD for TL2014
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding

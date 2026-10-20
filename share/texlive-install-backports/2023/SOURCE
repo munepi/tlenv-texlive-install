@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2023-parallel
 base:       83a4022e8af88dd83b915fb328e3e4133158478d
-tip:        a3fc67033d6b0a513f2c4cb92f85766cd2e40026
+tip:        4d0f270a1daff83351927a883fe93f148b24e386
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2023/tlnet-final/
 
 upstream commits:
@@ -37,3 +37,5 @@ upstream commits:
   r80657 [fmtutil,tlmgr] rebuild all formats in one fmtutil run
   r80658 [fmtutil,tlmgr] report each format as it is built
   r80687 fix tlmgr prefetch documentation
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding

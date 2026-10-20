@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2016-parallel
 base:       76d10786bda3d792c6c0c32d7e1d8b01dad001fa
-tip:        c2356301421750f438a64ebbbcf34c7e0573928d
+tip:        1ba2519e69ccbcc624d955971c6346a2dfcb75a3
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2016/tlnet-final/
 
 upstream commits:
@@ -39,3 +39,5 @@ upstream commits:
   r80687 fix tlmgr prefetch documentation
   local [backport] use win32() instead of wndws() for TL2020
   local [backport] tlmgr.pl: set $::prg for TL2016
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding
