@@ -22,9 +22,10 @@ the release (`SHA512SUMS.orig`); set `TEXLIVE_INSTALL_NO_BACKPORT=1` to use
 the vanilla files anyway. The backported files are part of TeX Live and are
 distributed under their own licenses (see `LICENSE.TL` of TeX Live).
 
-The backports cover TeX Live 2012 to 2025 (svn r80320 to r80687 of TeX
-Live 2026); 2010 and 2011 are not covered. What each release needed
-besides the upstream changes:
+The backports cover TeX Live 2012 to 2025 (svn r80320 to r80706 of TeX
+Live 2026, which also unpack the containers by piping the decompressor's
+output into tar, without an intermediate .tar file); 2010 and 2011 are not
+covered. What each release needed besides the upstream changes:
 
 | Release   | Notes |
 |-----------|-------|
