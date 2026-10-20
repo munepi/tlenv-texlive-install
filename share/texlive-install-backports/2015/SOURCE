@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2015-parallel
 base:       c31f7e70425df713e2428762d93bee7e7514210a
-tip:        3dc36a8c2d349dc5744c543853191e176eb25377
+tip:        31c5cdfa6f45be98f282712e5b9d901523a264c8
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2015/tlnet-final/
 
 upstream commits:
@@ -43,3 +43,5 @@ upstream commits:
   local [backport] TLUtils.pm: verify prefetched containers with MD5 for TL2015
   local [backport] TLUtils.pm: add tl_tmpfile for TL2015
   local [backport] TLUtils.pm: download_file returns the file handle for "|" in TL2015
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding

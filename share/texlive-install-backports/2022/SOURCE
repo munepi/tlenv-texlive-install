@@ -1,7 +1,7 @@
 repository: texlive-installer
 branch:     backport/2022-parallel
 base:       61917ac63c40957c1164f4b84b85360020a23fa4
-tip:        dfdd2182c984213dc2fbb1b3ee8dac0d3573d693
+tip:        1632cd41e7cd886e02993b715587f4a6475d1669
 tlnet:      http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2022/tlnet-final/
 
 upstream commits:
@@ -38,3 +38,5 @@ upstream commits:
   r80658 [fmtutil,tlmgr] report each format as it is built
   r80687 fix tlmgr prefetch documentation
   local [backport] use win32() instead of wndws() for TL2022
+  r80705 [tlmgr,install-tl] pipe decompressed containers into tar
+  r80706 [tlmgr,install-tl] untar: tar may stop reading before the padding
